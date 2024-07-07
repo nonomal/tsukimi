@@ -119,13 +119,6 @@ mod imp {
                     window.account_settings();
                 },
             );
-            klass.install_action(
-                "win.new-account",
-                None,
-                move |window, _action, _parameter| {
-                    window.new_account();
-                },
-            );
             klass.install_action_async("win.pop", None, |window, _action, _parameter| async move {
                 window.pop().await;
             });
@@ -710,5 +703,10 @@ impl Window {
         };
         let imp = self.imp();
         imp.media_viewer.view_image(paintable);
+    }
+
+    #[template_callback]
+    fn on_add_server(&self) {
+        self.new_account();
     }
 }
