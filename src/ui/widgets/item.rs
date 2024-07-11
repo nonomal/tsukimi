@@ -1,6 +1,6 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
-use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use glib::Object;
 use gtk::pango::AttrList;
 use gtk::template_callbacks;
@@ -14,7 +14,6 @@ use crate::client::error::UserFacingError;
 use crate::client::structs::*;
 use crate::toast;
 use crate::ui::models::SETTINGS;
-use crate::ui::mpv;
 
 use crate::ui::provider::dropdown_factory::factory;
 use crate::utils::{get_image_with_cache, req_cache, spawn, spawn_tokio};
@@ -174,6 +173,7 @@ pub(crate) mod imp {
             let obj = self.obj();
             let backdrop = self.backdrop.get();
             backdrop.set_height_request(crate::ui::models::SETTINGS.background_height());
+            self.actionbox.set_id(Some(obj.id()));
             spawn_g_timeout(glib::clone!(@weak obj => async move {
                 obj.imp().episodescrolled.fix();
                 obj.setup_background().await;
@@ -528,7 +528,6 @@ impl ItemPage {
                 }
             };
         let id = idclone.clone();
-        imp.actionbox.set_id(Some(idclone));
         let info = SeriesInfo {
             id: id.clone(),
             name: name.clone(),
@@ -550,7 +549,8 @@ impl ItemPage {
         let imp = self.imp();
         let id = seriesinfo.id.clone();
         imp.inid.replace(id.clone());
-        imp.actionbox.set_id(Some(id.clone()));
+        imp.actionbox.set_episode_id(Some(id.clone()));
+        imp.actionbox.bind_edit();
         imp.playbutton.set_sensitive(false);
         imp.line1spinner.set_visible(true);
         let playback =
@@ -584,6 +584,13 @@ impl ItemPage {
 
         if let Some(overview) = seriesinfo.overview {
             imp.selecteditemoverview.set_text(Some(&overview));
+        }
+        if let Some(user_data) = seriesinfo.user_data {
+            if let Some(is_favourite) = user_data.is_favorite {
+                imp.actionbox.set_episode_liked(is_favourite);
+            }
+            imp.actionbox.set_episode_played(user_data.played);
+            imp.actionbox.bind_edit();
         }
         self.createmediabox(media_playback.media_sources, None)
             .await;
@@ -680,16 +687,13 @@ impl ItemPage {
                 if let Some(image_tags) = item.backdrop_image_tags {
                     obj.add_backdrops(image_tags).await;
                 }
-                if item.user_data.is_some() {
-                    let user_data = item.user_data.as_ref().unwrap();
+                if let Some(ref user_data) = item.user_data {
+                    let imp = obj.imp();
                     if let Some (is_favourite) = user_data.is_favorite {
-                        let imp = obj.imp();
-                        if is_favourite {
-                            imp.actionbox.set_btn_active(true);
-                        } else {
-                            imp.actionbox.set_btn_active(false);
-                        }
+                        imp.actionbox.set_btn_active(is_favourite);
                     }
+                    imp.actionbox.set_played(user_data.played);
+                    imp.actionbox.bind_edit();
                 }
 
                 if let Some(media_sources) = item.media_sources {
@@ -708,7 +712,7 @@ impl ItemPage {
     pub async fn createmediabox(
         &self,
         media_sources: Vec<MediaSource>,
-        date_created: Option<String>,
+        date_created: Option<DateTime<Utc>>,
     ) {
         let imp = self.imp();
         let mediainfobox = imp.mediainfobox.get();
@@ -726,7 +730,7 @@ impl ItemPage {
                 mediasource.path.unwrap_or_default(),
                 mediasource.container.to_uppercase(),
                 bytefmt::format(mediasource.size),
-                dt(date_created.as_deref()),
+                dt(date_created),
                 mediasource.name
             );
             let label = gtk::Label::builder()
@@ -1060,24 +1064,7 @@ impl ItemPage {
                                 },
                                 None => None,
                             };
-                            if SETTINGS.mpv() {
-                                gio::spawn_blocking(move || {
-                                    match mpv::event::play(
-                                        url,
-                                        suburl,
-                                        Some(name.unwrap_or("".to_string())),
-                                        &back,
-                                        Some(percentage),
-                                    ) {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            eprintln!("Failed to play: {}", e);
-                                        }
-                                    };
-                                });
-                            } else {
-                                obj.get_window().set_clapperpage(&url, suburl.as_deref(), name.as_deref(), selected.as_deref(), Some(back));
-                            }
+                            obj.get_window().play_media(url, suburl, name, Some(back), selected, percentage);
                         });
                     } else {
                         toast!(obj,"No Stream URL found");
@@ -1099,16 +1086,9 @@ pub struct DropdownList {
     pub line2: Option<String>,
 }
 
-pub fn dt(date: Option<&str>) -> String {
-    match date {
-        Some(date) => {
-            let dt = DateTime::parse_from_rfc3339(date)
-                .unwrap()
-                .with_timezone(&Utc);
-            let local_time: DateTime<Local> = dt.with_timezone(&Local);
-            let naive_local_time: NaiveDateTime = local_time.naive_local();
-            naive_local_time.to_string()
-        }
-        None => "".to_string(),
-    }
+pub fn dt(date: Option<chrono::DateTime<Utc>>) -> String {
+    let Some(date) = date else {
+        return "".to_string();
+    };
+    date.format("%Y-%m-%d %H:%M:%S").to_string()
 }

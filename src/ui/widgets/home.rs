@@ -163,15 +163,23 @@ impl HomePage {
 
     pub async fn setup_libsview(&self, items: Vec<SimpleListItem>) {
         for view in items {
+            let Some(collection_type) = view.collection_type else {
+                continue;
+            };
+
             let results = match req_cache(&format!("library_{}", view.id), async move {
-                EMBY_CLIENT.get_latest(&view.id).await
+                if collection_type == "livetv" {
+                    EMBY_CLIENT.get_channels().await.map(|x| x.items)
+                } else {
+                    EMBY_CLIENT.get_latest(&view.id).await
+                }
             })
             .await
             {
                 Ok(history) => history,
                 Err(e) => {
                     toast!(self, e.to_user_facing());
-                    Vec::new()
+                    return;
                 }
             };
 

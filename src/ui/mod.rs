@@ -16,7 +16,7 @@ pub fn build_ui(app: &adw::Application) {
                 let about = adw::AboutWindow::builder()
                     .application_name("Tsukimi")
                     .version(crate::config::APP_VERSION)
-                    .comments("A simple third-party Emby client.\nTest version: tsukimi 0.6.6 \n2024.7.3 21:31")
+                    .comments("A simple third-party Emby client.\nTest version: tsukimi 0.6.10 \n2024.7.10 14:21")
                     .website("https://github.com/tsukinaha/tsukimi")
                     .application_icon("tsukimi")
                     .license_type(gtk::License::Gpl30)
@@ -47,6 +47,9 @@ pub fn load_css() {
         }
         "Adwaita Dark" => {
             styles.push_str(include_str!("adwaitadark.css"));
+        }
+        "???" => {
+            styles.push_str(include_str!("old.css"));
         }
         _ => {
             styles.push_str(include_str!("basic.css"));

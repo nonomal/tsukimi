@@ -94,7 +94,7 @@
                   <object class="GtkColorDialogButton" id="fg_color">
                     <property name="valign">center</property>
                     <property name="dialog">
-                      <object class="GtkColorDialog"/>
+                      <object class="GtkColorDialog" />
                     </property>
                     <style>
                       <class name="flat" />
@@ -115,6 +115,7 @@
                       <item translatable="yes">Adwaita Dark</item>
                       <item translatable="yes">Catppuccin Latte</item>
                       <item translatable="yes">Alpha Dark</item>
+                      <item translatable="yes">???</item>
                     </items>
                   </object>
                 </property>

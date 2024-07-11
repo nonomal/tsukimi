@@ -7,7 +7,6 @@ use std::{
 
 use crate::{
     client::{client::EMBY_CLIENT, network::*, structs::Back},
-    config::set_config,
     APP_ID,
 };
 
@@ -15,7 +14,7 @@ pub fn play(
     url: String,
     suburl: Option<String>,
     name: Option<String>,
-    back: &Back,
+    back: Option<Back>,
     percentage: Option<f64>,
 ) -> Result<()> {
     unsafe {
@@ -24,15 +23,14 @@ pub fn play(
         setlocale(LC_NUMERIC, "C\0".as_ptr() as *const _);
     }
 
-    let server_info = set_config();
-    let url = format!("{}:{}/emby{}", server_info.domain, server_info.port, url);
+    let url = EMBY_CLIENT.get_streaming_url(&url);
     let settings = gtk::gio::Settings::new(APP_ID);
     let interval = if settings.boolean("is-progress-enabled") {
         Duration::from_secs(10)
     } else {
         Duration::from_secs(300)
     };
-    let mut duration: u64 = back.tick;
+    let mut duration: u64 = back.clone().map_or(0, |b| b.tick);
     // Create an `Mpv` and set some properties.
     let mpv = Mpv::with_initializer(|init| {
         init.set_property("osc", true)?;
@@ -91,17 +89,16 @@ pub fn play(
     ev_ctx.observe_property("volume", Format::Int64, 0)?;
     ev_ctx.observe_property("time-pos", Format::Double, 0)?;
 
-    let backc = back.clone();
-    RUNTIME.spawn(async move { EMBY_CLIENT.position_start(&backc).await });
-
+    if let Some(back) = back.clone() {
+        RUNTIME.spawn(async move { EMBY_CLIENT.position_start(&back).await });
+    }
     crossbeam::scope(|scope| {
         scope.spawn(|_| {
             mpv.command("loadfile", &[&url, "append-play"]).unwrap();
             thread::sleep(Duration::from_secs(1));
             if let Some(suburl) = suburl {
-                let suburl = format!("{}:{}/emby{}", server_info.domain, server_info.port, suburl);
-                println!("Loading subtitle");
-                mpv.command("sub-add", &[&suburl, "select"]).unwrap();
+                let url = EMBY_CLIENT.get_streaming_url(&suburl);
+                mpv.command("sub-add", &[&url, "select"]).unwrap();
             }
         });
         let mut last_print = Instant::now();
@@ -110,9 +107,10 @@ pub fn play(
             match ev {
                 Ok(Event::EndFile(r)) => {
                     if r == 3 {
-                        let mut back = back.clone();
-                        back.tick = duration;
-                        RUNTIME.spawn(async move { EMBY_CLIENT.position_stop(&back).await });
+                        if let Some(mut back) = back.clone() {
+                            back.tick = duration;
+                            RUNTIME.spawn(async move { EMBY_CLIENT.position_stop(&back).await });
+                        }
                     }
                     println!("Exiting! Reason: {:?}", r);
                     break;
@@ -126,9 +124,10 @@ pub fn play(
                     duration = mpv_node as u64 * 10000000;
                     if last_print.elapsed() >= interval {
                         last_print = Instant::now();
-                        let mut back = back.clone();
-                        back.tick = duration;
-                        RUNTIME.spawn(async move { EMBY_CLIENT.position_back(&back).await });
+                        if let Some(mut back) = back.clone() {
+                            back.tick = duration;
+                            RUNTIME.spawn(async move { EMBY_CLIENT.position_back(&back).await });
+                        }
                     }
                 }
                 Ok(e) => println!("Event triggered: {:?}", e),

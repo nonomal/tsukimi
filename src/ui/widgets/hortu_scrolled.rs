@@ -4,13 +4,18 @@ use gtk::{gio, glib, template_callbacks, CompositeTemplate};
 use crate::client::structs::SimpleListItem;
 use crate::ui::provider::tu_item::TuItem;
 use crate::ui::widgets::fix::ScrolledWindowFixExt;
-use crate::utils::spawn;
 
 use super::tu_list_item::TuListItem;
+
+const SHOW_BUTTON_ANIMATION_DURATION: u32 = 500;
 
 mod imp {
     use std::cell::OnceCell;
 
+    use crate::client::client::EMBY_CLIENT;
+    use crate::client::error::UserFacingError;
+    use crate::toast;
+    use crate::utils::{spawn, spawn_tokio};
     use glib::subclass::InitializingObject;
     use gtk::gio;
 
@@ -34,6 +39,13 @@ mod imp {
         pub revealer: TemplateChild<gtk::Revealer>,
         #[template_child]
         pub morebutton: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub left_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub right_button: TemplateChild<gtk::Button>,
+
+        pub show_button_animation: OnceCell<adw::TimedAnimation>,
+        pub hide_button_animation: OnceCell<adw::TimedAnimation>,
 
         pub selection: gtk::SingleSelection,
     }
@@ -129,6 +141,27 @@ mod imp {
                         result.name.clone(),
                     ),
                 ),
+                "TvChannel" => {
+                    let id = result.id.clone();
+                    let name = result.name.clone();
+                    spawn(glib::clone!(@weak self as imp => async move {
+                        let obj = imp.obj();
+                        toast!(obj, "Processing...");
+                        match spawn_tokio(async move { EMBY_CLIENT.get_live_playbackinfo(&id).await }).await {
+                            Ok(playback) => {
+                                let Some(ref url) = playback.media_sources[0].transcoding_url else {
+                                    toast!(obj, "No transcoding url found");
+                                    return;
+                                };
+                                let window = obj.root().unwrap().downcast::<Window>().unwrap();
+                                window.play_media(url.to_string(), None, Some(name), None, None, 0.0)
+                            }
+                            Err(e) => {
+                                toast!(obj, e.to_user_facing());
+                            }
+                        }
+                    }));
+                }
                 "Series" => Self::push_page(
                     view,
                     &window,
@@ -182,6 +215,21 @@ mod imp {
                         ),
                     )
                 }
+                "UserView" => {
+                    let item = TuItem::from_simple(result, None);
+                    Self::push_page(
+                        view,
+                        &window,
+                        &result.name,
+                        crate::ui::widgets::singlelist::SingleListPage::new(
+                            item.id(),
+                            item.collection_type().unwrap_or_default(),
+                            "livetv",
+                            None,
+                            false,
+                        ),
+                    )
+                }
                 _ => {}
             }
         }
@@ -223,7 +271,7 @@ impl HortuScrolled {
         imp.morebutton.set_visible(true);
     }
 
-    pub fn set_items(&self, items: &Vec<SimpleListItem>) {
+    pub fn set_items(&self, items: &[SimpleListItem]) {
         if items.is_empty() {
             return;
         }
@@ -231,7 +279,6 @@ impl HortuScrolled {
         self.set_visible(true);
 
         let items = items.to_owned();
-        let items = items.clone();
 
         let imp = self.imp();
         let store = imp
@@ -241,25 +288,89 @@ impl HortuScrolled {
             .downcast::<gio::ListStore>()
             .unwrap();
 
+        for result in items {
+            let object = glib::BoxedAnyObject::new(result);
+            store.append(&object);
+        }
         imp.revealer.set_reveal_child(true);
-
-        spawn(glib::clone!(@weak store=> async move {
-            for result in items {
-                let object = glib::BoxedAnyObject::new(result);
-                store.append(&object);
-                gtk::glib::timeout_future(std::time::Duration::from_millis(30)).await;
-            }
-
-        }));
     }
 
     pub fn set_title(&self, title: &str) {
         self.imp().label.set_text(title);
     }
 
+    fn set_control_opacity(&self, opacity: f64) {
+        let imp = self.imp();
+        imp.left_button.set_opacity(opacity);
+        imp.right_button.set_opacity(opacity);
+    }
+
+    fn are_controls_visible(&self) -> bool {
+        if self.hide_controls_animation().state() == adw::AnimationState::Playing {
+            return false;
+        }
+
+        self.imp().left_button.opacity() >= 0.68
+            || self.show_controls_animation().state() == adw::AnimationState::Playing
+    }
+
+    fn show_controls_animation(&self) -> &adw::TimedAnimation {
+        self.imp().show_button_animation.get_or_init(|| {
+            let target = adw::CallbackAnimationTarget::new(glib::clone!(
+                @weak self as obj => move |opacity| obj.set_control_opacity(opacity)
+            ));
+
+            adw::TimedAnimation::builder()
+                .duration(SHOW_BUTTON_ANIMATION_DURATION)
+                .widget(&self.imp().scrolled.get())
+                .target(&target)
+                .value_to(0.7)
+                .build()
+        })
+    }
+
+    fn hide_controls_animation(&self) -> &adw::TimedAnimation {
+        self.imp().hide_button_animation.get_or_init(|| {
+            let target = adw::CallbackAnimationTarget::new(glib::clone!(
+                @weak self as obj => move |opacity| obj.set_control_opacity(opacity)
+            ));
+
+            adw::TimedAnimation::builder()
+                .duration(SHOW_BUTTON_ANIMATION_DURATION)
+                .widget(&self.imp().scrolled.get())
+                .target(&target)
+                .value_to(0.)
+                .build()
+        })
+    }
+
     #[template_callback]
     fn on_rightbutton_clicked(&self) {
         self.anime(true);
+    }
+
+    fn controls_opacity(&self) -> f64 {
+        self.imp().left_button.opacity()
+    }
+
+    #[template_callback]
+    fn on_enter_focus(&self) {
+        if !self.are_controls_visible() {
+            self.hide_controls_animation().pause();
+            self.show_controls_animation()
+                .set_value_from(self.controls_opacity());
+            self.show_controls_animation().play();
+        }
+    }
+
+    #[template_callback]
+    fn on_leave_focus(&self) {
+        if self.are_controls_visible() {
+            self.show_controls_animation().pause();
+            self.hide_controls_animation()
+                .set_value_from(self.controls_opacity());
+            self.hide_controls_animation().play();
+        }
     }
 
     #[template_callback]
@@ -277,9 +388,9 @@ impl HortuScrolled {
 
         let start = adj.value();
         let end = if is_right {
-            start + 400.0
+            start + 800.0
         } else {
-            start - 400.0
+            start - 800.0
         };
         let start_time = clock.frame_time();
         let end_time = start_time + 1000 * 400;

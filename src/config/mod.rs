@@ -4,7 +4,7 @@ use std::{env, fs::File, io::Read};
 use uuid::Uuid;
 
 pub mod proxy;
-pub const APP_VERSION: &str = "0.6.6";
+pub const APP_VERSION: &str = "0.6.10";
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -24,17 +24,6 @@ fn generate_uuid() -> String {
 pub fn load_uuid() {
     let uuid = generate_uuid();
     env::set_var("UUID", uuid);
-}
-
-pub fn set_config() -> Config {
-    Config {
-        domain: env::var("EMBY_DOMAIN").unwrap(),
-        username: env::var("EMBY_USERNAME").unwrap(),
-        password: env::var("EMBY_PASSWORD").unwrap(),
-        port: env::var("EMBY_PORT").unwrap(),
-        user_id: env::var("EMBY_USER_ID").unwrap(),
-        access_token: env::var("EMBY_ACCESS_TOKEN").unwrap(),
-    }
 }
 
 pub fn get_device_name() -> String {

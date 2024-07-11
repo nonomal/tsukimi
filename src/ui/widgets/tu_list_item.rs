@@ -1,9 +1,9 @@
+use adw::prelude::*;
 use glib::Object;
 use gtk::gdk::Rectangle;
 use gtk::gio::MenuModel;
 use gtk::glib::subclass::types::ObjectSubclassExt;
 use gtk::glib::subclass::types::ObjectSubclassIsExt;
-use gtk::prelude::*;
 use gtk::template_callbacks;
 use gtk::Builder;
 use gtk::PopoverMenu;
@@ -21,6 +21,8 @@ use crate::utils::spawn;
 use crate::utils::spawn_tokio;
 
 use super::window::Window;
+
+pub const PROGRESSBAR_ANIMATION_DURATION: u32 = 2000;
 
 mod imp {
     use adw::subclass::prelude::*;
@@ -142,7 +144,8 @@ impl TuListItem {
                 self.set_picture();
                 self.set_played();
                 if let Some(true) = imp.isresume.get() {
-                    self.set_played_percentage();
+                    self.set_played_percentage(self.get_played_percentage());
+                    return;
                 }
                 self.set_rating();
             }
@@ -152,9 +155,43 @@ impl TuListItem {
                 imp.overlay.set_size_request(250, 141);
                 self.set_picture();
             }
-            "CollectionFolder" => {
+            "TvChannel" => {
+                imp.listlabel.set_text(&format!(
+                    "{} - {}",
+                    item.name(),
+                    item.program_name().unwrap_or_default()
+                ));
+                imp.overlay.set_size_request(250, 141);
+                self.set_picture();
+
+                let Some(program_start_time) = item.program_start_time() else {
+                    return;
+                };
+
+                let program_start_time = program_start_time.to_local().unwrap();
+
+                let Some(program_end_time) = item.program_end_time() else {
+                    return;
+                };
+
+                let program_end_time = program_end_time.to_local().unwrap();
+
+                let now = glib::DateTime::now_local().unwrap();
+
+                let progress = (now.to_unix() - program_start_time.to_unix()) as f64
+                    / (program_end_time.to_unix() - program_start_time.to_unix()) as f64;
+
+                self.set_played_percentage(progress * 100.0);
+                imp.label2.set_text(&format!(
+                    "{} - {}",
+                    program_start_time.format("%H:%M").unwrap(),
+                    program_end_time.format("%H:%M").unwrap()
+                ));
+            }
+            "CollectionFolder" | "UserView" => {
                 imp.listlabel.set_text(&item.name());
                 imp.label2.set_visible(false);
+                imp.overlay.set_size_request(250, 141);
                 self.set_picture();
             }
             "Series" => {
@@ -191,9 +228,10 @@ impl TuListItem {
                     item.index_number(),
                     item.name()
                 ));
+                imp.overlay.set_size_request(250, 141);
                 self.set_picture();
                 self.set_played();
-                self.set_played_percentage();
+                self.set_played_percentage(self.get_played_percentage());
             }
             "Views" => {
                 imp.listlabel.set_text(&item.name());
@@ -205,7 +243,6 @@ impl TuListItem {
                 imp.label2.set_text(&item.albumartist_name());
                 imp.overlay.set_size_request(190, 190);
                 self.set_picture();
-                self.set_play();
             }
             "Actor" | "Person" | "Director" => {
                 imp.listlabel.set_text(&item.name());
@@ -220,25 +257,10 @@ impl TuListItem {
             }
             _ => {
                 self.set_visible(false);
-                println!("Unknown item type: {}", item_type)
+                warn!("Unknown item type: {}", item_type)
             }
         }
         self.set_tooltip_text(Some(&item.name()));
-    }
-
-    pub fn set_play(&self) {
-        let imp = self.imp();
-        let button = gtk::Button::builder()
-            .icon_name("media-playback-start-symbolic")
-            .halign(gtk::Align::Start)
-            .valign(gtk::Align::End)
-            .margin_bottom(5)
-            .margin_start(5)
-            .height_request(35)
-            .width_request(35)
-            .build();
-        button.add_css_class("suggested-action");
-        imp.overlay.add_overlay(&button);
     }
 
     pub fn set_picture(&self) {
@@ -292,15 +314,10 @@ impl TuListItem {
                     imp.overlay.set_size_request(250, 141);
                     self.set_image(id, "Backdrop", Some(0))
                 }
+            } else if let Some(img_tags) = item.primary_image_item_id() {
+                self.set_image(img_tags, "Primary", None)
             } else {
-                if self.itemtype() == "Episode" || self.itemtype() == "CollectionFolder" {
-                    imp.overlay.set_size_request(250, 141);
-                }
-                if let Some(img_tags) = item.primary_image_item_id() {
-                    self.set_image(img_tags, "Primary", None)
-                } else {
-                    self.set_image(id, "Primary", None)
-                }
+                self.set_image(id, "Primary", None)
             };
             imp.overlay.set_child(Some(&image));
         }
@@ -415,16 +432,42 @@ impl TuListItem {
         }
     }
 
-    pub fn set_played_percentage(&self) {
+    pub fn get_played_percentage(&self) -> f64 {
         let imp = self.imp();
         let item = imp.item.get().unwrap();
-        let percentage = item.played_percentage();
+        item.played_percentage()
+    }
+
+    pub fn set_played_percentage(&self, percentage: f64) {
+        let imp = self.imp();
+
         let progress = gtk::ProgressBar::builder()
             .show_text(true)
-            .fraction(percentage / 100.0)
+            .fraction(0.)
             .valign(gtk::Align::End)
             .build();
+
         imp.overlay.add_overlay(&progress);
+
+        spawn(glib::clone!(@weak progress => async move {
+            let target = adw::CallbackAnimationTarget::new(glib::clone!(
+                @weak progress => move |process| {
+                    progress.set_fraction(process)
+                }
+            ));
+
+            let animation = adw::TimedAnimation::builder()
+                .duration(PROGRESSBAR_ANIMATION_DURATION)
+                .widget(&progress)
+                .target(&target)
+                .easing(adw::Easing::EaseOutQuart)
+                .value_from(0.)
+                .value_to(percentage / 100.0)
+                .build();
+
+            glib::timeout_future_seconds(1).await;
+            animation.play();
+        }));
     }
 
     pub fn gesture(&self) {
@@ -459,9 +502,8 @@ impl TuListItem {
         let item_type = self.imp().itemtype.get().unwrap();
         match item_type.as_str() {
             "Movie" | "Series" | "Episode" => self.set_item_action(true),
-            "MusicAlbum" | "BoxSet" | "Tag" | "Genre" | "Views" | "Actor" | "Person" => {
-                self.set_item_action(false)
-            }
+            "MusicAlbum" | "BoxSet" | "Tag" | "Genre" | "Views" | "Actor" | "Person"
+            | "TvChannel" => self.set_item_action(false),
             _ => None,
         }
     }
@@ -645,7 +687,7 @@ pub fn tu_list_item_register(latest: &SimpleListItem, list_item: &gtk::ListItem,
     let tu_item = TuItem::from_simple(latest, None);
     match latest.latest_type.as_str() {
         "Movie" | "Series" | "Episode" | "MusicAlbum" | "BoxSet" | "Tag" | "Genre" | "Views"
-        | "Actor" | "Person" => {
+        | "Actor" | "Person" | "TvChannel" => {
             set_list_child(tu_item, list_item, &latest.latest_type, is_resume);
         }
         _ => {}

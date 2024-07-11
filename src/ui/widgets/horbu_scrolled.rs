@@ -119,7 +119,6 @@ impl HorbuScrolled {
         self.set_visible(true);
 
         let items = items.to_owned();
-        let items = items.clone();
 
         let imp = self.imp();
 
@@ -159,7 +158,6 @@ impl HorbuScrolled {
         self.set_visible(true);
 
         let items = items.to_owned();
-        let items = items.clone();
 
         let imp = self.imp();
 
