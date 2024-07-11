@@ -4,14 +4,11 @@ Name "Tsukimi Installer"
 ; Define output file
 OutFile "TsukimiSetup.exe"
 
-; Default installation directory
-InstallDir "$PROGRAMFILES\Tsukimi"
+; Default installation directory (in user's personal folder)
+InstallDir "$LOCALAPPDATA\Tsukimi"
 
 ; Store previous installation location
 Var PreviousInstallDir
-
-; Request administrator privileges
-RequestExecutionLevel admin
 
 ; Pages
 Page directory
@@ -37,14 +34,14 @@ Section "Tsukimi Main Program" SecMain
     ; Create uninstaller
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     
-    ; Write installation info to registry
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "DisplayName" "Tsukimi"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "UninstallString" '"$INSTDIR\Uninstall.exe"'
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "InstallLocation" "$INSTDIR"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "Publisher" "tsukinaha"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "DisplayVersion" "0.6.6"
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "NoModify" 1
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "NoRepair" 1
+    ; Write installation info to registry (current user only)
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "DisplayName" "Tsukimi"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "InstallLocation" "$INSTDIR"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "Publisher" "tsukinaha"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "DisplayVersion" "0.6.10"
+    WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "NoModify" 1
+    WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "NoRepair" 1
 SectionEnd
 
 ; Desktop shortcut section
@@ -67,14 +64,14 @@ Section "Uninstall"
     ; Remove uninstaller
     Delete "$INSTDIR\Uninstall.exe"
     
-    ; Remove registry keys
-    DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi"
+    ; Remove registry keys (current user only)
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi"
 SectionEnd
 
 ; Function to detect previous installation
 Function .onInit
     ; Try to read previous installation directory
-    ReadRegStr $PreviousInstallDir HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "InstallLocation"
+    ReadRegStr $PreviousInstallDir HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tsukimi" "InstallLocation"
     StrCmp $PreviousInstallDir "" done
     
     ; If a previous installation is found, set the installation directory to the previous one
