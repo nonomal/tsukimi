@@ -12,6 +12,7 @@ mod imp {
     use std::cell::OnceCell;
 
     use crate::utils::spawn_g_timeout;
+    use crate::{fraction, fraction_reset};
 
     // Object holding the state
     #[derive(CompositeTemplate, Default, glib::Properties)]
@@ -50,7 +51,9 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
             spawn_g_timeout(glib::clone!(@weak obj => async move {
+                fraction_reset!(obj);
                 obj.set_pages().await;
+                fraction!(obj);
             }));
         }
     }

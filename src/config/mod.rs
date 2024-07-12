@@ -4,7 +4,7 @@ use std::{env, fs::File, io::Read};
 use uuid::Uuid;
 
 pub mod proxy;
-pub const APP_VERSION: &str = "0.6.10";
+pub const APP_VERSION: &str = "0.7.0";
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -142,9 +142,7 @@ pub fn get_config_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error>
 
     #[cfg(unix)]
     {
-        let path = dirs::home_dir()
-            .ok_or("Failed to get Home dir!")?
-            .join(".config");
+        let path = dirs::config_dir().ok_or("Failed to get home directory");
         Ok(path)
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tsukimi"
-version = "0.6.10"
+version = "0.7.0"
 edition = "2021"
 description = "A simple Emby Client with MPV written by GTK4-RS"
 license = "GPL"
@@ -37,7 +37,7 @@ image = "0.25.1"
 
 [build-dependencies]
 embed-resource = "2.4.2"
-glib-build-tools = "0.19.0"
+glib-build-tools = "0.20.0"
 
 [features]
 console = []
