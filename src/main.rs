@@ -4,9 +4,11 @@
 )]
 
 use config::load_uuid;
+use gettextrs::*;
 use gtk::prelude::*;
 use gtk::{gio, glib};
 use std::env;
+
 mod client;
 mod config;
 mod gstl;
@@ -15,6 +17,8 @@ mod ui;
 mod utils;
 
 const APP_ID: &str = "moe.tsuna.tsukimi";
+const GETTEXT_PACKAGE: &str = "tsukimi";
+const LOCALEDIR: &str = "/usr/share/locale";
 
 fn main() -> glib::ExitCode {
     load_uuid();
@@ -38,6 +42,14 @@ fn main() -> glib::ExitCode {
                 .unwrap()
                 .join("cache"),
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        setlocale(LocaleCategory::LcAll, "");
+        bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR)
+            .expect("Invalid argument passed to bindtextdomain");
+        textdomain(GETTEXT_PACKAGE).expect("Invalid string passed to textdomain");
     }
 
     // Register and include resources

@@ -1,4 +1,5 @@
 use adw::prelude::*;
+use gettextrs::gettext;
 use gio::Settings;
 use gtk::subclass::prelude::*;
 use std::env;
@@ -123,7 +124,7 @@ mod imp {
                 window.pop().await;
             });
             klass.install_action("win.toggle-fullscreen", None, |obj, _, _| {
-                if obj.is_fullscreened() {
+                if obj.is_fullscreen() {
                     obj.unfullscreen();
                 } else {
                     obj.fullscreen();
@@ -156,8 +157,10 @@ mod imp {
             obj.load_window_size();
             obj.set_servers();
             obj.set_nav_servers();
-            self.selectlist
-                .connect_row_selected(glib::clone!(@weak obj => move |_, row| {
+            self.selectlist.connect_row_selected(glib::clone!(
+                #[weak]
+                obj,
+                move |_, row| {
                     if let Some(row) = row {
                         let num = row.index();
                         match num {
@@ -173,7 +176,8 @@ mod imp {
                             _ => {}
                         }
                     }
-                }));
+                }
+            ));
         }
     }
 
@@ -248,15 +252,19 @@ impl Window {
         for account in accounts.accounts {
             listbox.append(&self.set_server_rows(account));
         }
-        listbox.connect_row_activated(glib::clone!(@weak self as obj => move |_, row| {
-            unsafe {
-                let account_ptr: std::ptr::NonNull<Account>  = row.data("account").unwrap();
-                let account: &Account = &*account_ptr.as_ptr();
-                EMBY_CLIENT.init(account);
-                SETTINGS.set_preferred_server(&account.servername).unwrap();
+        listbox.connect_row_activated(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |_, row| {
+                unsafe {
+                    let account_ptr: std::ptr::NonNull<Account> = row.data("account").unwrap();
+                    let account: &Account = &*account_ptr.as_ptr();
+                    EMBY_CLIENT.init(account);
+                    SETTINGS.set_preferred_server(&account.servername).unwrap();
+                }
+                obj.reset();
             }
-            obj.reset();
-        }));
+        ));
     }
 
     pub fn set_nav_servers(&self) {
@@ -300,11 +308,15 @@ impl Window {
                 .valign(gtk::Align::Center)
                 .build();
             button.add_css_class("flat");
-            button.connect_clicked(glib::clone!(@weak self as obj=> move |_| {
-                crate::config::remove(&account_clone).unwrap();
-                obj.set_servers();
-                obj.set_nav_servers();
-            }));
+            button.connect_clicked(glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move |_| {
+                    crate::config::remove(&account_clone).unwrap();
+                    obj.set_servers();
+                    obj.set_nav_servers();
+                }
+            ));
             button
         });
         row.add_css_class("serverrow");
@@ -321,7 +333,7 @@ impl Window {
 
     pub fn account_settings(&self) {
         let dialog = crate::ui::widgets::account_settings::AccountSettings::new();
-        dialog.present(self);
+        dialog.present(Some(self));
     }
 
     async fn homeviewpop(&self) {
@@ -330,7 +342,7 @@ impl Window {
         if let Some(tag) = imp.homeview.visible_page().unwrap().tag() {
             if tag.as_str() == "homepage" {
                 imp.navipage
-                    .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| "Home".to_string()));
+                    .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| gettext("Home")));
                 self.change_pop_visibility();
             } else {
                 imp.navipage.set_title(&tag);
@@ -343,7 +355,7 @@ impl Window {
         imp.historyview.pop();
         if let Some(tag) = imp.historyview.visible_page().unwrap().tag() {
             if tag.as_str() == "historypage" {
-                imp.navipage.set_title("History & Liked");
+                imp.navipage.set_title(&gettext("Liked"));
                 self.change_pop_visibility();
             } else {
                 imp.navipage.set_title(&tag);
@@ -356,7 +368,7 @@ impl Window {
         imp.searchview.pop();
         if let Some(tag) = imp.searchview.visible_page().unwrap().tag() {
             if tag.as_str() == "searchpage" {
-                imp.navipage.set_title("Search");
+                imp.navipage.set_title(&gettext("Search"));
                 self.change_pop_visibility();
             } else {
                 imp.navipage.set_title(&tag);
@@ -457,21 +469,21 @@ impl Window {
             imp.homepage
                 .set_child(Some(&crate::ui::widgets::home::HomePage::new()));
             imp.navipage
-                .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| "Home".to_string()));
+                .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| gettext("Home")));
         }
         if let Some(tag) = imp.homeview.visible_page().unwrap().tag() {
             if tag.as_str() == "homepage" {
                 imp.navipage
-                    .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| "Home".to_string()));
+                    .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| gettext("Home")));
                 self.set_pop_visibility(false);
             } else {
                 imp.navipage
-                    .set_title(&env::var("HOME_TITLE").unwrap_or_else(|_| "Home".to_string()));
+                    .set_title(&env::var("HOME_TITLE").unwrap_or_else(|_| gettext("Home")));
                 self.set_pop_visibility(true);
             }
         } else {
             imp.navipage
-                .set_title(&env::var("HOME_TITLE").unwrap_or_else(|_| "Home".to_string()));
+                .set_title(&env::var("HOME_TITLE").unwrap_or_else(|_| gettext("Home")));
             self.set_pop_visibility(true);
         }
     }
@@ -485,7 +497,7 @@ impl Window {
         imp.homepage
             .set_child(Some(&crate::ui::widgets::home::HomePage::new()));
         imp.navipage
-            .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| "Home".to_string()));
+            .set_title(&env::var("EMBY_NAME").unwrap_or_else(|_| gettext("Home")));
         self.set_pop_visibility(false);
         self.imp().player_toolbar_box.on_stop_button_clicked();
     }
@@ -499,7 +511,7 @@ impl Window {
             .pop_to_page(&imp.historyview.find_page("historypage").unwrap());
         imp.historypage
             .set_child(Some(&crate::ui::widgets::history::HistoryPage::new()));
-        imp.navipage.set_title("History");
+        imp.navipage.set_title(&gettext("History"));
         self.set_pop_visibility(false);
     }
 
@@ -512,7 +524,7 @@ impl Window {
             .pop_to_page(&imp.searchview.find_page("searchpage").unwrap());
         imp.searchpage
             .set_child(Some(&crate::ui::widgets::search::SearchPage::new()));
-        imp.navipage.set_title("Search");
+        imp.navipage.set_title(&gettext("Search"));
         self.set_pop_visibility(false);
     }
 
@@ -522,21 +534,21 @@ impl Window {
         if imp.historypage.child().is_none() {
             imp.historypage
                 .set_child(Some(&crate::ui::widgets::history::HistoryPage::new()));
-            imp.navipage.set_title("Liked");
+            imp.navipage.set_title(&gettext("Liked"));
         }
         if let Some(tag) = imp.historyview.visible_page().unwrap().tag() {
             if tag.as_str() == "historypage" {
-                imp.navipage.set_title("Liked");
+                imp.navipage.set_title(&gettext("Liked"));
                 self.set_pop_visibility(false);
             } else {
                 self.set_pop_visibility(true);
                 imp.navipage
-                    .set_title(&env::var("HISTORY_TITLE").unwrap_or_else(|_| "Liked".to_string()));
+                    .set_title(&env::var("HISTORY_TITLE").unwrap_or_else(|_| gettext("Liked")));
             }
         } else {
             self.set_pop_visibility(true);
             imp.navipage
-                .set_title(&env::var("HISTORY_TITLE").unwrap_or_else(|_| "Liked".to_string()));
+                .set_title(&env::var("HISTORY_TITLE").unwrap_or_else(|_| gettext("Liked")));
         }
     }
 
@@ -546,21 +558,21 @@ impl Window {
         if imp.searchpage.child().is_none() {
             imp.searchpage
                 .set_child(Some(&crate::ui::widgets::search::SearchPage::new()));
-            imp.navipage.set_title("Search");
+            imp.navipage.set_title(&gettext("Search"));
         }
         if let Some(tag) = imp.searchview.visible_page().unwrap().tag() {
             if tag.as_str() == "searchpage" {
-                imp.navipage.set_title("Search");
+                imp.navipage.set_title(&gettext("Search"));
                 self.set_pop_visibility(false);
             } else {
                 self.set_pop_visibility(true);
                 imp.navipage
-                    .set_title(&env::var("SEARCH_TITLE").unwrap_or_else(|_| "Search".to_string()));
+                    .set_title(&env::var("SEARCH_TITLE").unwrap_or_else(|_| gettext("Search")));
             }
         } else {
             self.set_pop_visibility(true);
             imp.navipage
-                .set_title(&env::var("SEARCH_TITLE").unwrap_or_else(|_| "Search".to_string()));
+                .set_title(&env::var("SEARCH_TITLE").unwrap_or_else(|_| gettext("Search")));
         }
     }
 
@@ -661,13 +673,17 @@ impl Window {
 
     pub fn new_account(&self) {
         let dialog = crate::ui::widgets::account_add::AccountWindow::new();
-        dialog.present(self);
+        dialog.present(Some(self));
     }
 
     pub fn set_player_toolbar(&self) {
-        spawn(glib::clone!(@weak self as obj=>async move {
-            obj.imp().player_toolbar_bin.set_reveal_child(true);
-        }));
+        spawn(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                obj.imp().player_toolbar_bin.set_reveal_child(true);
+            }
+        ));
     }
 
     pub fn set_fraction(&self, to_value: f64) {
@@ -682,7 +698,9 @@ impl Window {
     fn progressbar_animation(&self) -> &adw::TimedAnimation {
         self.imp().progress_bar_animation.get_or_init(|| {
             let target = adw::CallbackAnimationTarget::new(glib::clone!(
-                @weak self as obj => move |fraction| obj.imp().progressbar.set_fraction(fraction)
+                #[weak(rename_to = obj)]
+                self,
+                move |fraction| obj.imp().progressbar.set_fraction(fraction)
             ));
 
             adw::TimedAnimation::builder()

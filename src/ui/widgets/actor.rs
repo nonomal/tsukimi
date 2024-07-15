@@ -1,3 +1,4 @@
+use gettextrs::gettext;
 use glib::Object;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
@@ -76,11 +77,15 @@ pub(crate) mod imp {
             self.parent_constructed();
             let obj = self.obj();
 
-            spawn_g_timeout(glib::clone!(@weak obj=> async move {
-                obj.setup_pic();
-                obj.get_item().await;
-                obj.set_lists().await;
-            }));
+            spawn_g_timeout(glib::clone!(
+                #[weak]
+                obj,
+                async move {
+                    obj.setup_pic();
+                    obj.get_item().await;
+                    obj.set_lists().await;
+                }
+            ));
 
             self.actionbox.set_id(Some(obj.id()));
         }
@@ -139,9 +144,10 @@ impl ActorPage {
             }
         };
 
-        let id = self.id();
-
-        spawn(glib::clone!(@weak self as obj, @strong id =>async move {
+        spawn(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
                 if let Some(overview) = item.overview {
                     inscription.set_text(Some(&overview));
                 }
@@ -159,7 +165,8 @@ impl ActorPage {
                 }
                 title.set_text(&item.name);
                 inforevealer.set_reveal_child(true);
-        }));
+            }
+        ));
     }
 
     pub async fn set_lists(&self) {
@@ -178,7 +185,7 @@ impl ActorPage {
             _ => return,
         };
 
-        hortu.set_title(types);
+        hortu.set_title(&gettext(types));
 
         let types = types.to_string();
 
@@ -204,7 +211,7 @@ impl ActorPage {
 
         let linkshorbu = imp.linkshorbu.get();
 
-        linkshorbu.set_title("Links");
+        linkshorbu.set_title(&gettext("Links"));
 
         linkshorbu.set_links(&links);
     }

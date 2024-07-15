@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use adw::prelude::*;
 use adw::subclass::prelude::*;
+use gettextrs::gettext;
 use glib::Object;
 use gtk::template_callbacks;
 use gtk::{gio, glib};
@@ -77,9 +78,13 @@ pub(crate) mod imp {
             self.parent_constructed();
             let obj = self.obj();
 
-            spawn_g_timeout(glib::clone!(@weak obj => async move {
-                obj.setup().await;
-            }));
+            spawn_g_timeout(glib::clone!(
+                #[weak]
+                obj,
+                async move {
+                    obj.setup().await;
+                }
+            ));
 
             self.actionbox.set_id(Some(obj.id()));
         }
@@ -159,9 +164,10 @@ impl BoxSetPage {
             }
         };
 
-        let id = self.id();
-
-        spawn(glib::clone!(@weak self as obj, @strong id =>async move {
+        spawn(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
                 {
                     let mut str = String::new();
                     if let Some(rating) = item.official_rating {
@@ -185,7 +191,7 @@ impl BoxSetPage {
                     obj.setlinksscrolled(links);
                 }
                 if let Some(userdata) = item.user_data {
-                    if let Some (is_favourite) = userdata.is_favorite {
+                    if let Some(is_favourite) = userdata.is_favorite {
                         let imp = obj.imp();
                         if is_favourite {
                             imp.actionbox.set_btn_active(true);
@@ -196,7 +202,8 @@ impl BoxSetPage {
                 }
                 obj.imp().boxset_title.set_text(&item.name);
                 obj.imp().inforevealer.set_reveal_child(true);
-        }));
+            }
+        ));
     }
 
     pub fn setlinksscrolled(&self, links: Vec<Urls>) {
@@ -204,7 +211,7 @@ impl BoxSetPage {
 
         let linkshorbu = imp.linkshorbu.get();
 
-        linkshorbu.set_title("Links");
+        linkshorbu.set_title(&gettext("Links"));
 
         linkshorbu.set_links(&links);
     }
@@ -214,7 +221,7 @@ impl BoxSetPage {
 
         let id = self.id();
 
-        imp.inititemhortu.set_title("Items");
+        imp.inititemhortu.set_title(&gettext("Items"));
 
         let results = match req_cache(&format!("boxset_{}", &id), async move {
             EMBY_CLIENT.get_includedby(&id).await

@@ -128,7 +128,6 @@ impl PlayerToolbarBox {
     pub fn set_repeat_mode(&self, mode: ListRepeatMode) {
         let player = &self.imp().player;
         player.set_repeat_mode(mode);
-        player.set_is_first_song(true);
         SETTINGS.set_music_repeat_mode(mode.to_string()).unwrap();
         let i = &self.imp().repeat_image;
         match mode {
@@ -162,19 +161,23 @@ impl PlayerToolbarBox {
             .set_text(&format_duration(core_song.duration() as i64));
         imp.progress_scale
             .set_range(0.0, core_song.duration() as f64);
-        spawn(glib::clone!(@weak imp => async move {
-            if core_song.have_single_track_image() {
-                let path = get_image_with_cache(&core_song.id(), "Primary", None)
-                    .await
-                    .unwrap();
-                imp.cover_image.set_file(Some(&path));
-            } else {
-                let path = get_image_with_cache(&core_song.album_id(), "Primary", None)
-                    .await
-                    .unwrap();
-                imp.cover_image.set_file(Some(&path));
+        spawn(glib::clone!(
+            #[weak]
+            imp,
+            async move {
+                if core_song.have_single_track_image() {
+                    let path = get_image_with_cache(&core_song.id(), "Primary", None)
+                        .await
+                        .unwrap();
+                    imp.cover_image.set_from_file(Some(&path));
+                } else {
+                    let path = get_image_with_cache(&core_song.album_id(), "Primary", None)
+                        .await
+                        .unwrap();
+                    imp.cover_image.set_from_file(Some(&path));
+                }
             }
-        }));
+        ));
     }
 
     #[template_callback]

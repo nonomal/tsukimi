@@ -105,9 +105,13 @@ mod imp {
             let store = gtk::gio::ListStore::new::<glib::BoxedAnyObject>();
             self.selection.set_model(Some(&store));
 
-            spawn_g_timeout(glib::clone!(@weak obj => async move {
-                obj.set_up().await;
-            }));
+            spawn_g_timeout(glib::clone!(
+                #[weak]
+                obj,
+                async move {
+                    obj.set_up().await;
+                }
+            ));
         }
     }
 
@@ -151,8 +155,8 @@ impl SingleListPage {
     async fn set_up(&self) {
         self.imp().sortorder.replace("Descending".to_string());
         self.imp().sortby.replace("SortName".to_string());
-        self.handle_type().await;
         self.set_up_dropdown();
+        self.handle_type().await;
         self.set_factory().await;
     }
 
@@ -190,7 +194,7 @@ impl SingleListPage {
             .title("Filter")
             .presentation_mode(adw::DialogPresentationMode::BottomSheet)
             .build();
-        dialog.present(self);
+        dialog.present(Some(self));
     }
 
     async fn handle_type(&self) {
@@ -275,15 +279,19 @@ impl SingleListPage {
             self.imp().listrevealer.set_visible(false);
         };
         let store = gio::ListStore::new::<glib::BoxedAnyObject>();
-        spawn(glib::clone!(@weak store=> async move {
+        spawn(glib::clone!(
+            #[weak]
+            store,
+            async move {
                 listrevealer.set_reveal_child(true);
-                count.set_text(&format!("{} Items",list_results.total_record_count));
+                count.set_text(&format!("{} Items", list_results.total_record_count));
                 for result in list_results.items {
                     let object = glib::BoxedAnyObject::new(result);
                     store.append(&object);
                     gtk::glib::timeout_future(std::time::Duration::from_millis(30)).await;
                 }
-        }));
+            }
+        ));
         imp.selection.set_model(Some(&store));
         let listtype = imp.listtype.get().unwrap().clone();
         let factory = tu_list_item_factory(listtype);
@@ -291,15 +299,20 @@ impl SingleListPage {
         imp.listgrid.set_model(Some(&imp.selection));
         imp.listgrid.set_min_columns(1);
         imp.listgrid.set_max_columns(13);
-        imp.listgrid.connect_activate(
-            glib::clone!(@weak self as obj => move |gridview, position| {
+        imp.listgrid.connect_activate(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |gridview, position| {
                 let model = gridview.model().unwrap();
-                let item = model.item(position).and_downcast::<glib::BoxedAnyObject>().unwrap();
+                let item = model
+                    .item(position)
+                    .and_downcast::<glib::BoxedAnyObject>()
+                    .unwrap();
                 let result: std::cell::Ref<SimpleListItem> = item.borrow();
                 let window = obj.root().and_downcast::<Window>().unwrap();
-                tu_list_view_connect_activate(window,&result,obj.imp().id.get().cloned())
-            }),
-        );
+                tu_list_view_connect_activate(window, &result, obj.imp().id.get().cloned())
+            }
+        ));
     }
 
     #[template_callback]
@@ -406,21 +419,30 @@ impl SingleListPage {
         let sort = SETTINGS.list_sort();
         if sort >= 0 {
             dropdown.set_selected(sort as u32);
+            self.update_sortby(sort as u32);
         }
-        dropdown.connect_selected_item_notify(glib::clone!(@weak self as obj => move |_| {
-            spawn(glib::clone!(@weak obj=> async move {
-                obj.set_dropdown_selected();
-                let store = obj
-                    .imp()
-                    .selection
-                    .model()
-                    .unwrap()
-                    .downcast::<gio::ListStore>()
-                    .unwrap();
-                store.remove_all();
-                obj.update_view("0").await;
-            }));
-        }));
+        dropdown.connect_selected_item_notify(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |_| {
+                spawn(glib::clone!(
+                    #[weak]
+                    obj,
+                    async move {
+                        obj.set_dropdown_selected();
+                        let store = obj
+                            .imp()
+                            .selection
+                            .model()
+                            .unwrap()
+                            .downcast::<gio::ListStore>()
+                            .unwrap();
+                        store.remove_all();
+                        obj.update_view("0").await;
+                    }
+                ));
+            }
+        ));
     }
 
     pub fn set_dropdown_selected(&self) {
@@ -428,6 +450,10 @@ impl SingleListPage {
         let dropdown = imp.dropdown.get();
         let selected = dropdown.selected();
         SETTINGS.set_list_sort(&selected).unwrap();
+        self.update_sortby(selected);
+    }
+
+    pub fn update_sortby(&self, selected: u32) {
         let sortby = match selected {
             0 => "SortName",
             1 => "TotalBitrate,SortName",
@@ -441,7 +467,7 @@ impl SingleListPage {
             9 => "Runtime,SortName",
             _ => "SortName",
         };
-        imp.sortby.replace(sortby.to_string());
+        self.imp().sortby.replace(sortby.to_string());
     }
 
     pub async fn poster(&self, poster: &str) {

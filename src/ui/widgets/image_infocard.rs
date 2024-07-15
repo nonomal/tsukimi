@@ -1,5 +1,5 @@
+use gettextrs::gettext;
 use glib::Object;
-use gst::glib::Priority;
 use gtk::glib::subclass::types::ObjectSubclassIsExt;
 use gtk::prelude::*;
 use gtk::template_callbacks;
@@ -93,7 +93,7 @@ impl ImageInfoCard {
             .unwrap();
         let paintable = self.picture_paintable();
         if paintable.is_none() {
-            toast!(self, "No image to view");
+            toast!(self, gettext("No image to view"));
             return;
         }
         window.media_viewer_show_paintable(paintable);
@@ -109,10 +109,11 @@ impl ImageInfoCard {
     fn on_copy(&self) {
         let clipboard = self.clipboard();
         let Some(texture) = self.picture_texture() else {
-            toast!(self, "No image to copy");
+            toast!(self, gettext("No image to copy"));
             return;
         };
         clipboard.set_texture(&texture);
+        toast!(self, gettext("Image copied to clipboard"));
     }
 
     pub fn set_size(&self, width: &Option<u32>, height: &Option<u32>, size: &Option<u64>) {
@@ -135,22 +136,30 @@ impl ImageInfoCard {
         let picture = self.imp().picture.get();
 
         gio::File::for_uri(&path).read_async(
-            Priority::LOW,
+            glib::Priority::LOW,
             None::<&gio::Cancellable>,
-            glib::clone!(@weak self as obj => move |res| {
-                if let Ok(stream) = res {
-                    match gtk::gdk_pixbuf::Pixbuf::from_stream(&stream, None::<&gio::Cancellable>) {
-                        Ok(pixbuf) => {
-                            picture.set_paintable(Some(&gtk::gdk::Texture::for_pixbuf(&pixbuf)));
-                            obj.set_picture_visible();
-                        },
-                        Err(_) => {
-                            toast!(obj, "Error loading image");
-                            obj.set_fallback_visible();
+            glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move |res| {
+                    if let Ok(stream) = res {
+                        match gtk::gdk_pixbuf::Pixbuf::from_stream(
+                            &stream,
+                            None::<&gio::Cancellable>,
+                        ) {
+                            Ok(pixbuf) => {
+                                picture
+                                    .set_paintable(Some(&gtk::gdk::Texture::for_pixbuf(&pixbuf)));
+                                obj.set_picture_visible();
+                            }
+                            Err(_) => {
+                                toast!(obj, gettext("Error loading image"));
+                                obj.set_fallback_visible();
+                            }
                         }
                     }
                 }
-            }),
+            ),
         );
     }
 

@@ -1,3 +1,4 @@
+use gettextrs::gettext;
 use glib::Object;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
@@ -59,9 +60,13 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
-            spawn(glib::clone!(@weak obj =>async move {
-                obj.set_lists().await;
-            }));
+            spawn(glib::clone!(
+                #[weak]
+                obj,
+                async move {
+                    obj.set_lists().await;
+                }
+            ));
         }
     }
 
@@ -119,7 +124,7 @@ impl HistoryPage {
             _ => return,
         };
 
-        hortu.set_title(&format!("Favourite {}", types));
+        hortu.set_title(&format!("{} {}", gettext("Favourite"), gettext(types)));
 
         let types = types.to_string();
 

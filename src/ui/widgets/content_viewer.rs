@@ -131,7 +131,8 @@ impl MediaContentViewer {
         self.show_loading();
 
         spawn(clone!(
-            @weak self as obj =>
+            #[weak(rename_to = obj)]
+            self,
             async move {
                 obj.view_file_inner(file).await;
             }

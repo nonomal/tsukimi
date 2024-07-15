@@ -1,3 +1,4 @@
+use gettextrs::gettext;
 use glib::Object;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib};
@@ -50,11 +51,15 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
-            spawn_g_timeout(glib::clone!(@weak obj => async move {
-                fraction_reset!(obj);
-                obj.set_pages().await;
-                fraction!(obj);
-            }));
+            spawn_g_timeout(glib::clone!(
+                #[weak]
+                obj,
+                async move {
+                    fraction_reset!(obj);
+                    obj.set_pages().await;
+                    fraction!(obj);
+                }
+            ));
         }
     }
 
@@ -100,9 +105,9 @@ impl ListPage {
             ("liked", "Liked"),
         ];
 
-        for (name, title) in &pages {
+        for (name, title) in pages {
             let page = SingleListPage::new(id.clone(), collection_type.clone(), name, None, false);
-            stack.add_titled(&page, Some(name), title);
+            stack.add_titled(&page, Some(name), &gettext(title));
         }
     }
 }

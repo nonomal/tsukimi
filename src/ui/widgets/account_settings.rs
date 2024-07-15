@@ -1,6 +1,7 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
-use gtk::{gio, glib, template_callbacks, CompositeTemplate};
+use gettextrs::gettext;
+use gtk::{gdk::RGBA, gio, glib, template_callbacks, CompositeTemplate};
 
 use super::window::Window;
 use crate::{
@@ -9,7 +10,6 @@ use crate::{
     ui::models::{emby_cache_path, SETTINGS},
     utils::spawn_tokio,
 };
-use gtk::gdk::RGBA;
 
 mod imp {
     use super::*;
@@ -167,19 +167,25 @@ impl AccountSettings {
         let new_password = self.imp().password_entry.text();
         let new_password_second = self.imp().password_second_entry.text();
         if new_password.is_empty() || new_password_second.is_empty() {
-            toast!(self, "Password cannot be empty!");
+            toast!(self, gettext("Password cannot be empty!"));
             return;
         }
         if new_password != new_password_second {
-            toast!(self, "Passwords do not match!");
+            toast!(self, gettext("Passwords do not match!"));
             return;
         }
         match spawn_tokio(async move { EMBY_CLIENT.change_password(&new_password).await }).await {
             Ok(_) => {
-                toast!(self, "Password changed successfully! Please login again.");
+                toast!(
+                    self,
+                    gettext("Password changed successfully! Please login again.")
+                );
             }
             Err(e) => {
-                toast!(self, &format!("Failed to change password: {}", e));
+                toast!(
+                    self,
+                    &format!("{}: {}", gettext("Failed to change password"), e)
+                );
             }
         };
     }
@@ -187,12 +193,19 @@ impl AccountSettings {
     pub fn set_sidebar(&self) {
         let imp = self.imp();
         imp.sidebarcontrol.set_active(SETTINGS.overlay());
-        imp.sidebarcontrol
-            .connect_active_notify(glib::clone!(@weak self as obj =>move |control| {
-                let window = obj.root().unwrap().downcast::<super::window::Window>().unwrap();
+        imp.sidebarcontrol.connect_active_notify(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |control| {
+                let window = obj
+                    .root()
+                    .unwrap()
+                    .downcast::<super::window::Window>()
+                    .unwrap();
                 window.overlay_sidebar(control.is_active());
                 SETTINGS.set_overlay(control.is_active()).unwrap();
-            }));
+            }
+        ));
     }
 
     pub fn set_back(&self) {
@@ -305,7 +318,7 @@ impl AccountSettings {
         if path.exists() {
             std::fs::remove_dir_all(path).unwrap();
         }
-        toast!(self, "Cache Cleared")
+        toast!(self, gettext("Cache Cleared"))
     }
 
     pub fn set_theme(&self) {
@@ -322,14 +335,18 @@ impl AccountSettings {
             _ => (),
         }
         imp.themecontrol.set_selected(pos);
-        imp.themecontrol.connect_selected_item_notify(
-            glib::clone!(@weak self as obj =>move |control| {
-                let theme = control.selected_item().and_then(|item| {
-                    item.downcast::<gtk::StringObject>().ok().map(|item| item.string())
-                }).unwrap();
+        imp.themecontrol
+            .connect_selected_item_notify(move |control| {
+                let theme = control
+                    .selected_item()
+                    .and_then(|item| {
+                        item.downcast::<gtk::StringObject>()
+                            .ok()
+                            .map(|item| item.string())
+                    })
+                    .unwrap();
                 SETTINGS.set_theme(&theme).unwrap();
-            }),
-        );
+            });
     }
 
     pub fn set_thread(&self) {
@@ -366,28 +383,42 @@ impl AccountSettings {
         let imp = self.imp();
         imp.backgroundspinrow
             .set_value(SETTINGS.pic_opacity().into());
-        imp.backgroundspinrow.connect_value_notify(
-            glib::clone!(@weak self as obj =>move |control| {
+        imp.backgroundspinrow.connect_value_notify(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |control| {
                 SETTINGS.set_pic_opacity(control.value() as i32).unwrap();
-                let window = obj.root().unwrap().downcast::<super::window::Window>().unwrap();
+                let window = obj
+                    .root()
+                    .unwrap()
+                    .downcast::<super::window::Window>()
+                    .unwrap();
                 window.set_picopacity(control.value() as i32);
-            }),
-        );
+            }
+        ));
     }
 
     pub fn set_pic(&self) {
         let imp = self.imp();
         imp.backgroundcontrol
             .set_active(SETTINGS.background_enabled());
-        imp.backgroundcontrol.connect_active_notify(
-            glib::clone!(@weak self as obj =>move |control| {
-                SETTINGS.set_background_enabled(control.is_active()).unwrap();
+        imp.backgroundcontrol.connect_active_notify(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |control| {
+                SETTINGS
+                    .set_background_enabled(control.is_active())
+                    .unwrap();
                 if !control.is_active() {
-                    let window = obj.root().unwrap().downcast::<super::window::Window>().unwrap();
+                    let window = obj
+                        .root()
+                        .unwrap()
+                        .downcast::<super::window::Window>()
+                        .unwrap();
                     window.clear_pic();
                 }
-            }),
-        );
+            }
+        ));
     }
 
     pub fn set_picblur(&self) {
@@ -411,10 +442,18 @@ impl AccountSettings {
     }
 
     pub fn clearpic(&self) {
-        glib::spawn_future_local(glib::clone!(@weak self as obj => async move {
-            let window = obj.root().unwrap().downcast::<super::window::Window>().unwrap();
-            window.clear_pic();
-        }));
+        glib::spawn_future_local(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                let window = obj
+                    .root()
+                    .unwrap()
+                    .downcast::<super::window::Window>()
+                    .unwrap();
+                window.clear_pic();
+            }
+        ));
         SETTINGS.set_root_pic("").unwrap();
     }
 
@@ -435,7 +474,7 @@ impl AccountSettings {
 
     pub fn clear_font(&self) {
         SETTINGS.set_font_name("").unwrap();
-        toast!(self, "Font Cleared, Restart to take effect.");
+        toast!(self, gettext("Font Cleared, Restart to take effect."));
     }
 
     pub fn set_daily_recommend(&self) {

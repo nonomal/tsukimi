@@ -1,4 +1,5 @@
 use adw::{prelude::*, subclass::prelude::*};
+use gettextrs::gettext;
 use gtk::{gdk, glib, glib::clone, graphene, CompositeTemplate};
 
 use crate::toast;
@@ -84,8 +85,8 @@ mod imp {
 
             let obj = self.obj();
             let target = adw::CallbackAnimationTarget::new(clone!(
-                @weak
-                obj =>
+                #[weak]
+                obj,
                 move |value| {
                     // This is needed to fade the header bar content
                     obj.imp().header_bar.set_opacity(value);
@@ -99,8 +100,8 @@ mod imp {
             let swipe_tracker = adw::SwipeTracker::new(&*obj);
             swipe_tracker.set_orientation(gtk::Orientation::Vertical);
             swipe_tracker.connect_update_swipe(clone!(
-                @weak
-                obj =>
+                #[weak]
+                obj,
                 move |_, progress| {
                     obj.imp().header_bar.set_opacity(0.0);
                     obj.imp().swipe_progress.set(progress);
@@ -109,13 +110,13 @@ mod imp {
                 }
             ));
             swipe_tracker.connect_end_swipe(clone!(
-                @weak
-                obj =>
+                #[weak]
+                obj,
                 move |_, _, to| {
                     if to == 0.0 {
                         let target = adw::CallbackAnimationTarget::new(clone!(
-                            @weak
-                            obj =>
+                            #[weak]
+                            obj,
                             move |value| {
                                 obj.imp().swipe_progress.set(value);
                                 obj.queue_allocate();
@@ -132,8 +133,8 @@ mod imp {
                         );
                         animation.set_easing(adw::Easing::EaseOutCubic);
                         animation.connect_done(clone!(
-                            @weak
-                            obj =>
+                            #[weak]
+                            obj,
                             move |_| {
                                 obj.imp().header_bar.set_opacity(1.0);
                             }
@@ -158,8 +159,8 @@ mod imp {
             });
 
             self.revealer.connect_transition_done(clone!(
-                @weak
-                obj =>
+                #[weak]
+                obj,
                 move |revealer| {
                     if !revealer.reveal_child() {
                         obj.set_visible(false);
@@ -331,6 +332,6 @@ impl MediaViewer {
             return;
         };
         self.clipboard().set_texture(&texture);
-        toast!(self, "Image copied to clipboard");
+        toast!(self, gettext("Image copied to clipboard"));
     }
 }
