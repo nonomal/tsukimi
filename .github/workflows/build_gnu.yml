@@ -49,6 +49,9 @@ jobs:
             mingw-w64-x86_64-gst-plugins-ugly
             mingw-w64-x86_64-gst-libav
             git
+            base-devel
+            libxml2-devel
+            tar
 
       - name: Install clapper
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -62,9 +65,9 @@ jobs:
 
       - name: Build tsukimi-${{ matrix.target }}
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        shell: powershell
+        shell: msys2 {0}
         run: |
-          $env:Path = "C:\msys64\mingw64\bin;C:\msys64\mingw64\lib;C:\msys64\mingw64\include;" + $env:Path;
+          export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
           rustup default stable-gnu
           cargo build --release --locked
 
