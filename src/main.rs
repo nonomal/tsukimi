@@ -44,7 +44,7 @@ fn main() -> glib::ExitCode {
         );
     }
 
-    #[cfg(target_os = "linux")]
+    // #[cfg(target_os = "linux")]
     {
         setlocale(LocaleCategory::LcAll, "");
         bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR)

@@ -8,7 +8,7 @@
         <child>
           <object class="GtkBox">
             <property name="orientation">vertical</property>
-            <property name="spacing">5</property>
+            <property name="spacing">8</property>
             <child>
               <object class="GtkOverlay" id="overlay">
                 <property name="width-request">141</property>
@@ -19,11 +19,11 @@
                     <property name="halign">start</property>
                     <property name="valign">start</property>
                     <property name="icon-name">view-fullscreen-symbolic</property>
-                    <signal name="clicked" handler="on_view_pic_clicked" swapped="yes"/>
+                    <signal name="clicked" handler="on_view_pic_clicked" swapped="yes" />
                     <style>
-                      <class name="flat"/>
-                      <class name="circular"/>
-                      <class name="accent"/>
+                      <class name="flat" />
+                      <class name="circular" />
+                      <class name="accent" />
                     </style>
                   </object>
                 </child>
@@ -36,8 +36,8 @@
                 </child>
                 <child type="overlay">
                   <object class="GtkBox" id="broken">
-                  <property name="hexpand">True</property>
-                  <property name="visible">False</property>
+                    <property name="hexpand">True</property>
+                    <property name="visible">False</property>
                     <child>
                       <object class="GtkImage">
                         <property name="halign">center</property>
@@ -46,12 +46,12 @@
                         <property name="icon-name">image-missing-symbolic</property>
                         <property name="icon-size">GTK_ICON_SIZE_LARGE</property>
                         <style>
-                          <class name="accent"/>
+                          <class name="accent" />
                         </style>
                       </object>
                     </child>
                     <style>
-                      <class name="card"/>
+                      <class name="card" />
                     </style>
                   </object>
                 </child>
@@ -63,8 +63,8 @@
                 <property name="width-request">167</property>
                 <property name="ellipsize">end</property>
                 <attributes>
-                  <attribute name="scale" value="0.9"/>
-                  <attribute name="weight" value="PANGO_WEIGHT_BOLD"/>
+                  <attribute name="scale" value="0.9" />
+                  <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
                 </attributes>
               </object>
             </child>
@@ -74,7 +74,7 @@
                 <property name="width-request">167</property>
                 <property name="ellipsize">middle</property>
                 <attributes>
-                  <attribute name="scale" value="0.8"/>
+                  <attribute name="scale" value="0.8" />
                 </attributes>
                 <style>
                   <class name="dim-label" />

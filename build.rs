@@ -1,5 +1,4 @@
-extern crate embed_resource;
-// use std::process::Command;
+use std::process::Command;
 
 fn main() {
     glib_build_tools::compile_resources(
@@ -8,7 +7,7 @@ fn main() {
         "tsukimi.gresource",
     );
 
-    #[cfg(target_os = "linux")]
+    // #[cfg(target_os = "linux")]
     {
         let po_file = "po/zh_CN.po";
         let mo_file = "i18n/locale/zh_CN/LC_MESSAGES/tsukimi.mo";
@@ -31,6 +30,8 @@ fn main() {
         }
     }
 
-    println!("cargo:rerun-if-changed=tsukimi-manifest.rc");
-    embed_resource::compile("./tsukimi-manifest.rc", embed_resource::NONE);
+    {
+        println!("cargo:rerun-if-changed=tsukimi-manifest.rc");
+        embed_resource::compile("./tsukimi-manifest.rc", embed_resource::NONE);
+    }
 }

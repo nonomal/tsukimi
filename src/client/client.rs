@@ -14,15 +14,15 @@ use crate::{
 };
 
 use super::structs::{
-    AuthenticateResponse, Back, ImageItem, Item, List, LiveMedia, LoginResponse, Media, SerInList,
-    SimpleListItem,
+    AuthenticateResponse, Back, ExternalIdInfo, ImageItem, Item, List, LiveMedia, LoginResponse,
+    Media, RemoteSearchInfo, RemoteSearchResult, SerInList, SimpleListItem,
 };
 
 pub static EMBY_CLIENT: Lazy<EmbyClient> = Lazy::new(EmbyClient::default);
 pub static DEVICE_ID: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
 static PROFILE: &str = include_str!("stream_profile.json");
 static LIVEPROFILE: &str = include_str!("test.json");
-static CLIENT_ID: Lazy<String> = Lazy::new(|| format!("Tsukimi/{}", APP_VERSION));
+static CLIENT_ID: Lazy<String> = Lazy::new(|| "Tsukimi".to_string());
 pub struct EmbyClient {
     pub url: Mutex<Option<Url>>,
     pub client: reqwest::Client,
@@ -273,7 +273,7 @@ impl EmbyClient {
                 if image_type == "Backdrop" {
                     "1280"
                 } else {
-                    "800"
+                    "600"
                 },
             ),
         ];
@@ -348,6 +348,55 @@ impl EmbyClient {
         ];
         let profile: Value = serde_json::from_str(PROFILE).unwrap();
         self.post(&path, &params, profile).await?.json().await
+    }
+
+    pub async fn scan(&self, id: &str) -> Result<Response, reqwest::Error> {
+        let path = format!("Items/{}/Refresh", id);
+        let params = [
+            ("Recursive", "true"),
+            ("ImageRefreshMode", "Default"),
+            ("MetadataRefreshMode", "Default"),
+            ("ReplaceAllImages", "false"),
+            ("ReplaceAllMetadata", "false"),
+        ];
+        self.post(&path, &params, json!({})).await
+    }
+
+    pub async fn fullscan(
+        &self,
+        id: &str,
+        replace_images: &str,
+        replace_metadata: &str,
+    ) -> Result<Response, reqwest::Error> {
+        let path = format!("Items/{}/Refresh", id);
+        let params = [
+            ("Recursive", "true"),
+            ("ImageRefreshMode", "FullRefresh"),
+            ("MetadataRefreshMode", "FullRefresh"),
+            ("ReplaceAllImages", replace_images),
+            ("ReplaceAllMetadata", replace_metadata),
+        ];
+        self.post(&path, &params, json!({})).await
+    }
+
+    pub async fn remote_search(
+        &self,
+        type_: &str,
+        info: &RemoteSearchInfo,
+    ) -> Result<Vec<RemoteSearchResult>, reqwest::Error> {
+        let path = format!("Items/RemoteSearch/{}", type_);
+        println!("{}", path);
+        let body = json!(info);
+        self.post(&path, &[], body).await?.json().await
+    }
+
+    pub async fn get_external_id_info(
+        &self,
+        id: &str,
+    ) -> Result<Vec<ExternalIdInfo>, reqwest::Error> {
+        let path = format!("Items/{}/ExternalIdInfos", id);
+        let params = [("IsSupportedAsIdentifier", "true")];
+        self.request(&path, &params).await
     }
 
     pub async fn get_live_playbackinfo(&self, id: &str) -> Result<LiveMedia, reqwest::Error> {
