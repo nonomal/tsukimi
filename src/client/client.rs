@@ -8,14 +8,15 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    config::{get_device_name, load_env, proxy::ReqClient, Account, APP_VERSION},
+    config::{load_env, proxy::ReqClient, Account, APP_VERSION},
     ui::models::emby_cache_path,
     utils::{spawn, spawn_tokio},
 };
 
 use super::structs::{
-    AuthenticateResponse, Back, ExternalIdInfo, ImageItem, Item, List, LiveMedia, LoginResponse,
-    Media, RemoteSearchInfo, RemoteSearchResult, SerInList, SimpleListItem,
+    ActivityLogs, AuthenticateResponse, Back, ExternalIdInfo, ImageItem, Item, List, LiveMedia,
+    LoginResponse, Media, RemoteSearchInfo, RemoteSearchResult, ScheduledTask, SerInList,
+    ServerInfo, SimpleListItem,
 };
 
 pub static EMBY_CLIENT: Lazy<EmbyClient> = Lazy::new(EmbyClient::default);
@@ -23,6 +24,13 @@ pub static DEVICE_ID: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
 static PROFILE: &str = include_str!("stream_profile.json");
 static LIVEPROFILE: &str = include_str!("test.json");
 static CLIENT_ID: Lazy<String> = Lazy::new(|| "Tsukimi".to_string());
+static DEVICE_NAME: Lazy<String> = Lazy::new(|| {
+    hostname::get()
+        .unwrap_or("Unknown".into())
+        .to_string_lossy()
+        .to_string()
+});
+
 pub struct EmbyClient {
     pub url: Mutex<Option<Url>>,
     pub client: reqwest::Client,
@@ -37,7 +45,7 @@ impl EmbyClient {
         headers.insert("X-Emby-Client", HeaderValue::from_static(&CLIENT_ID));
         headers.insert(
             "X-Emby-Device-Name",
-            HeaderValue::from_str(&get_device_name()).unwrap(),
+            HeaderValue::from_str(&DEVICE_NAME).unwrap(),
         );
         headers.insert(
             "X-Emby-Device-Id",
@@ -551,11 +559,11 @@ impl EmbyClient {
             ("ImageTypeLimit", "1"),
             ("StartIndex", start),
             ("Recursive", "true"),
-            ("IncludeItemTypes", "Movie,Series,Video,Game,MusicAlbum"),
+            ("IncludeItemTypes", "Movie,Series,MusicAlbum"),
             ("SortBy", sortby),
             ("SortOrder", sort_order),
             ("EnableImageTypes", "Primary,Backdrop,Thumb"),
-            if listtype == "Genres" {
+            if listtype == "Genre" {
                 ("GenreIds", parentid)
             } else if listtype == "Studios" {
                 ("StudioIds", parentid)
@@ -563,7 +571,6 @@ impl EmbyClient {
                 ("TagIds", parentid)
             },
         ];
-
         let id_clone;
         if let Some(id) = id {
             id_clone = id.clone();
@@ -751,7 +758,8 @@ impl EmbyClient {
             "CurrentPw": old_password,
             "NewPw": new_password
         });
-        self.post(&path, &[], body).await?.json().await
+        self.post(&path, &[], body).await?;
+        Ok(())
     }
 
     pub async fn hide_from_resume(&self, id: &str) -> Result<(), reqwest::Error> {
@@ -761,7 +769,8 @@ impl EmbyClient {
             id
         );
         let params = [("Hide", "true")];
-        self.post(&path, &params, json!({})).await?.json().await
+        self.post(&path, &params, json!({})).await?;
+        Ok(())
     }
 
     pub async fn get_songs(&self, parent_id: &str) -> Result<List, reqwest::Error> {
@@ -835,6 +844,40 @@ impl EmbyClient {
             ("StartIndex", start_index),
         ];
         self.request("LiveTv/Channels", &params).await
+    }
+
+    pub async fn get_server_info(&self) -> Result<ServerInfo, reqwest::Error> {
+        self.request("System/Info", &[]).await
+    }
+
+    pub async fn shut_down(&self) -> Result<Response, reqwest::Error> {
+        self.post("System/Shutdown", &[], json!({})).await
+    }
+
+    pub async fn restart(&self) -> Result<Response, reqwest::Error> {
+        self.post("System/Restart", &[], json!({})).await
+    }
+
+    pub async fn get_activity_log(
+        &self,
+        has_user_id: bool,
+    ) -> Result<ActivityLogs, reqwest::Error> {
+        let params = [
+            ("Limit", "15"),
+            ("StartIndex", "0"),
+            ("hasUserId", &has_user_id.to_string()),
+        ];
+        self.request("System/ActivityLog/Entries", &params).await
+    }
+
+    pub async fn get_scheduled_tasks(&self) -> Result<Vec<ScheduledTask>, reqwest::Error> {
+        self.request("ScheduledTasks", &[]).await
+    }
+
+    pub async fn run_scheduled_task(&self, id: String) -> Result<(), reqwest::Error> {
+        let path = format!("ScheduledTasks/Running/{}", &id);
+        self.post(&path, &[], json!({})).await?;
+        Ok(())
     }
 
     pub fn get_image_path(&self, id: &str, image_type: &str, image_index: Option<u32>) -> String {

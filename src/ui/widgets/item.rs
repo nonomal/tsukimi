@@ -298,17 +298,14 @@ impl ItemPage {
         let seasonlist = imp.seasonlist.get();
         seasonlist.set_model(Some(&imp.seasonselection));
 
-        let series_info = match req_cache(&format!("serinfo_{}", &id), async move {
-            EMBY_CLIENT.get_series_info(&id).await
-        })
-        .await
-        {
-            Ok(item) => item.items,
-            Err(e) => {
-                toast!(self, e.to_user_facing());
-                Vec::new()
-            }
-        };
+        let series_info =
+            match spawn_tokio(async move { EMBY_CLIENT.get_series_info(&id).await }).await {
+                Ok(item) => item.items,
+                Err(e) => {
+                    toast!(self, e.to_user_facing());
+                    Vec::new()
+                }
+            };
 
         spawn(glib::clone!(
             #[weak(rename_to = obj)]
@@ -887,10 +884,13 @@ impl ItemPage {
                     .text(&str)
                     .min_lines(14)
                     .hexpand(true)
+                    .margin_start(15)
+                    .margin_end(15)
                     .yalign(0.0)
                     .build();
                 mediapartbox.append(&typebox);
                 mediapartbox.append(&inscription);
+                mediapartbox.add_css_class("card");
                 mediabox.append(&mediapartbox);
             }
 

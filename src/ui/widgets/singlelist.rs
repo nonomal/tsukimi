@@ -298,16 +298,21 @@ impl SingleListPage {
         imp.listgrid.set_min_columns(1);
         imp.listgrid.set_max_columns(13);
 
-        imp.listgrid
-            .connect_activate(glib::clone!(move |listview, position| {
+        let parentid = self.parentid();
+
+        imp.listgrid.connect_activate(glib::clone!(
+            #[strong]
+            parentid,
+            move |listview, position| {
                 let model = listview.model().unwrap();
                 let item = model
                     .item(position)
                     .and_downcast::<glib::BoxedAnyObject>()
                     .unwrap();
                 let result: std::cell::Ref<SimpleListItem> = item.borrow();
-                result.activate(listview);
-            }));
+                result.activate(listview, parentid.clone());
+            }
+        ));
     }
 
     #[template_callback]
