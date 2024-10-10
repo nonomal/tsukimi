@@ -1,73 +1,49 @@
-<h1 align="center">Tsukimi</h1>
+![Commit Activity](https://img.shields.io/github/commit-activity/m/tsukinaha/Tsukimi/main) ![Top Language](https://img.shields.io/github/languages/top/tsukinaha/Tsukimi) ![Github License](https://img.shields.io/github/license/tsukinaha/Tsukimi) [![Linux CI](https://github.com/tsukinaha/tsukimi/actions/workflows/build_linux.yml/badge.svg)](https://github.com/tsukinaha/tsukimi/actions/workflows/build_linux.yml) [![Telegram](https://img.shields.io/badge/-Telegram_Group-red?color=blue&logo=telegram&logoColor=white)](https://t.me/tsukimi_chat)
 
-> A Simple Third-party Emby client.    
-> 使用 GTK4-RS 编写的第三方 Emby 客户端
+## Tsukimi
+Tsukimi is a simple third-party Emby client written in GTK4-RS, uses MPV as the video player, and GStreamer as the music player
 
-![Commit Activity](https://img.shields.io/github/commit-activity/m/tsukinaha/Tsukimi/main) ![Top Language](https://img.shields.io/github/languages/top/tsukinaha/Tsukimi) ![Github License](https://img.shields.io/github/license/tsukinaha/Tsukimi) [![Linux CI](https://github.com/tsukinaha/tsukimi/actions/workflows/build_linux.yml/badge.svg)](https://github.com/tsukinaha/tsukimi/actions/workflows/build_linux.yml) [![Windows GNU CI status](https://github.com/tsukinaha/tsukimi/actions/workflows/build_release.yml/badge.svg)](https://github.com/tsukinaha/tsukimi/actions/workflows/build_release.yml) [![AUR Version](https://img.shields.io/aur/version/tsukimi-git)](https://aur.archlinux.org/packages/tsukimi-git) 
+![Alt](https://repobeats.axiom.co/api/embed/82b1088ba840d89c50e1b5b3c1c40f4575b321a6.svg "Repobeats analytics image")
 
-## Notice
-
-> [!IMPORTANT]
-> READ BEFORE INSTALLATION    
-
-- **对 Windows 的支持不做任何保证**
-- Trello Kanban     https://trello.com/b/8GOsuygJ/%E5%95%8A%EF%BC%9F  
-- Telegram Group    https://t.me/+-kAfBLQ-ol0yNjA1  
+## Frequently Asked Questions
+https://dev.tsukinaha.org/tsukimi
 
 ## Screenshots
 <div align="center">
- <img src="./docs/tsukimi.png"/>
+ <img src="./docs/tsukimi1.png"/>
+</div>
+<div align="center">
+ <img src="./docs/tsukimi2.png"/>
 </div>
 
-## Build
-### Linux
-- 请见 [Dockerfile](https://github.com/tsukinaha/tsukimi/blob/main/Dockerfile)
-
 ## Installation
-### Linux
-Archlinux
-```
-# From AUR
-paru -S tsukimi-git
-```
+### Native package
+[![Packaging status](https://repology.org/badge/vertical-allrepos/tsukimi.svg)](https://repology.org/project/tsukimi/versions)
  
 
-### Windows
-- Scoop
-```
-# Install tsukimi only, tsukimi included in Scoop/Extras
-## if you want to tansfer previous installed tsukimi from scol to Extras, first uninstall it and reinstall by `scoop install Extras/tsukimi` 
-scoop install tsukimi
-
-# Or install tsukimi with mpv configs
-scoop bucket add scol https://github.com/Kosette/scol.git
-scoop install tsukimi-full
-```
-- [Release](https://github.com/tsukinaha/tsukimi/releases/latest)
-
 ## MPV Config
+Set config=true to enable external config.
 - Linux: `$XDG_CONFIG_HOME/mpv`
-- Windows: 
-```
-|__bin\
-|__share\
-|__lib\
-|__mpv\
-|    |__mpv.conf
-|    |__input.conf
-|    |__scripts\
-|    |    |__ .......
-|    |__ .......
-|__config\
-```
-Priority:
-`./mpv`>`$MPV_HOME`>`%APPDATA%/mpv`
+- Windows: `$MPV_HOME`>`%APPDATA%/mpv`
+
 [MPV-manual#files](https://mpv.io/manual/master/#files) 
 
+## Contributing
+### Code
+Please join our [Telegram Group](https://t.me/+BtTTXtCZFSxjZGU1) (Only for contributing)
 
-## Themes
+### Translations
 
-- 在自定义样式表时请使用 Default [更多](https://wiki.archlinux.org/title/GTK#Configuration)
+If you'd like to help translating **Tsukimi** into your language, please head over to [Weblate](https://hosted.weblate.org/projects/tsukimi/).
+
+<a href="https://hosted.weblate.org/engage/tsukimi/">
+<img src="https://hosted.weblate.org/widget/tsukimi/main/multi-auto.svg" alt="翻译状态" />
+</a>
+
+
+
+## Build
+[Build On Linux](./docs/build_on_linux.md)
 
 ## Credits
 - [gtk4-rs](https://github.com/gtk-rs/gtk4-rs)
@@ -78,6 +54,9 @@ Priority:
 - Gnome Music
 - Fractal
 - Clapper
+
+## Disclaimer
+The developers of this application does not have any affiliation with the content providers available.
 
 ## Star History
 

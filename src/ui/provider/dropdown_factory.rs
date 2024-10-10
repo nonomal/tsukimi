@@ -1,16 +1,27 @@
 use gtk::glib;
 use gtk::prelude::*;
 
-use crate::ui::widgets::item::DropdownList;
+use derive_builder::Builder;
 
-pub fn factory(upbind: bool) -> gtk::SignalListItemFactory {
+#[derive(Builder, Default, Clone, PartialEq)]
+#[builder(default)]
+pub struct DropdownList {
+    pub line1: Option<String>,
+    pub line2: Option<String>,
+    pub index: Option<u64>,
+    pub id: Option<String>,
+    pub direct_url: Option<String>,
+    pub is_external: Option<bool>,
+}
+
+pub fn factory<const UPBIND: bool>() -> gtk::SignalListItemFactory {
     let factory = gtk::SignalListItemFactory::new();
     factory.connect_bind(move |_, item| {
         let list_item = item
             .downcast_ref::<gtk::ListItem>()
             .expect("Needs to be ListItem");
 
-        if list_item.child().is_some() && !upbind {
+        if list_item.child().is_some() && !UPBIND {
             return;
         }
 
@@ -25,8 +36,9 @@ pub fn factory(upbind: bool) -> gtk::SignalListItemFactory {
             let list_dropdown = crate::ui::widgets::list_dropdown::ListDropdown::new();
 
             list_dropdown.set_label1(&dl.line1);
+            list_dropdown.set_tooltip_text(dl.line1.as_deref());
 
-            if !upbind {
+            if !UPBIND {
                 list_dropdown.set_label2(&dl.line2);
             }
 

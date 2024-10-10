@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template parent="AdwNavigationPage" class="ActorPage">
-    <property name="title" translatable="yes">Tsukimi</property>
+    <property name="title" >Tsukimi</property>
     <child>
       <object class="AdwToolbarView">
         <child>
@@ -23,6 +23,7 @@
                             <property name="orientation">horizontal</property>
                             <property name="spacing">6</property>
                             <property name="margin-end">12</property>
+                            <property name="margin-start">18</property>
                             <property name="halign">fill</property>
                             <property name="valign">start</property>
                             <child>
@@ -65,9 +66,6 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="GtkSeparator"/>
-                                </child>
-                                <child>
                                   <object class="GtkInscription" id="inscription">
                                     <property name="tooltip-text" bind-source="inscription" bind-property="text" bind-flags="sync-create" translatable="yes"/>
                                     <property name="text" translatable="yes">No Inscriptions</property>
@@ -93,14 +91,17 @@
                     </child>
                     <child>
                       <object class="HortuScrolled" id="moviehortu">
+                        <property name="moreview">True</property>
                       </object>
                     </child>
                     <child>
                       <object class="HortuScrolled" id="serieshortu">
+                        <property name="moreview">True</property>
                       </object>
                     </child>
                     <child>
                       <object class="HortuScrolled" id="episodehortu">
+                        <property name="moreview">True</property>
                       </object>
                     </child>
                     <child>

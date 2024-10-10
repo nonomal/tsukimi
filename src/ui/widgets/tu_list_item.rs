@@ -19,9 +19,9 @@ use crate::ui::provider::tu_item::TuItem;
 use crate::ui::provider::IS_ADMIN;
 use crate::utils::spawn;
 use crate::utils::spawn_tokio;
+use anyhow::Result;
 
 use super::picture_loader::PictureLoader;
-use super::window::Window;
 
 pub const PROGRESSBAR_ANIMATION_DURATION: u32 = 2000;
 
@@ -129,11 +129,8 @@ pub enum Action {
 
 #[template_callbacks]
 impl TuListItem {
-    pub fn new(item: TuItem, isresume: bool) -> Self {
-        Object::builder()
-            .property("item", item)
-            .property("isresume", isresume)
-            .build()
+    pub fn new(item: TuItem) -> Self {
+        Object::builder().property("item", item).build()
     }
 
     pub fn default() -> Self {
@@ -216,12 +213,14 @@ impl TuListItem {
                 imp.listlabel.set_text(&item.name());
                 if let Some(status) = item.status() {
                     if status == "Continuing" {
-                        imp.label2.set_text(&format!("{} - {}", year, gettext("Present")));
+                        imp.label2
+                            .set_text(&format!("{} - {}", year, gettext("Present")));
                     } else if status == "Ended" {
                         if let Some(end_date) = item.end_date() {
                             let end_year = end_date.year();
                             if end_year != year.parse::<i32>().unwrap_or_default() {
-                                imp.label2.set_text(&format!("{} - {}", year, end_date.year()));
+                                imp.label2
+                                    .set_text(&format!("{} - {}", year, end_date.year()));
                             } else {
                                 imp.label2.set_text(&format!("{}", end_year));
                             }
@@ -251,7 +250,8 @@ impl TuListItem {
                 self.set_picture();
             }
             "Episode" => {
-                imp.listlabel.set_text(&item.series_name());
+                imp.listlabel
+                    .set_text(&item.series_name().unwrap_or_default());
                 imp.label2.set_text(&format!(
                     "S{}E{}: {}",
                     item.parent_index_number(),
@@ -685,7 +685,7 @@ impl TuListItem {
         Some(action_group)
     }
 
-    async fn perform_action_inner(id: &str, action: &Action) -> Result<(), reqwest::Error> {
+    async fn perform_action_inner(id: &str, action: &Action) -> Result<()> {
         match action {
             Action::Like => EMBY_CLIENT.like(id).await,
             Action::Unlike => EMBY_CLIENT.unlike(id).await,
@@ -770,29 +770,8 @@ impl TuListItem {
             #[weak(rename_to = obj)]
             self,
             async move {
-                let window = obj.root().and_downcast::<super::window::Window>().unwrap();
-                window.toast("Success");
+                toast!(obj, gettext("Success"));
             }
         ));
-    }
-
-    #[template_callback]
-    fn on_view_pic_clicked(&self) {
-        let picture = self
-            .imp()
-            .overlay
-            .child()
-            .unwrap()
-            .downcast::<PictureLoader>()
-            .unwrap()
-            .imp()
-            .picture
-            .get();
-        let window = self
-            .ancestor(Window::static_type())
-            .and_downcast::<Window>()
-            .unwrap();
-        window.reveal_image(&picture);
-        window.media_viewer_show_paintable(picture.paintable());
     }
 }

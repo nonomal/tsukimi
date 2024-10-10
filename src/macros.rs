@@ -15,6 +15,7 @@ macro_rules! _add_toast {
         {
             dialog.add_toast($toast);
         } else if let Some(root) = $widget.root() {
+            #[allow(deprecated)]
             if let Some(window) = root.downcast_ref::<adw::PreferencesWindow>() {
                 use adw::prelude::PreferencesWindowExt;
                 window.add_toast($toast);
@@ -33,7 +34,11 @@ macro_rules! toast {
     ($widget:expr, $message:expr) => {{
         $crate::_add_toast!(
             $widget,
-            adw::Toast::builder().timeout(2).title($message).build()
+            adw::Toast::builder()
+                .timeout(2)
+                .use_markup(false)
+                .title($message)
+                .build()
         );
     }};
 }

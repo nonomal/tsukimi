@@ -1,15 +1,17 @@
 use std::sync::Mutex;
 
+use anyhow::{anyhow, Result};
+
 use reqwest::{header::HeaderValue, Method, RequestBuilder, Response};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{info, warn};
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    config::{load_env, proxy::ReqClient, Account, APP_VERSION},
-    ui::models::emby_cache_path,
+    config::{proxy::ReqClient, Account, APP_VERSION},
+    ui::{models::emby_cache_path, widgets::single_grid::imp::ListType},
     utils::{spawn, spawn_tokio},
 };
 
@@ -17,8 +19,8 @@ use once_cell::sync::Lazy;
 
 use super::structs::{
     ActivityLogs, AuthenticateResponse, Back, ExternalIdInfo, ImageItem, Item, List, LiveMedia,
-    LoginResponse, Media, RemoteSearchInfo, RemoteSearchResult, ScheduledTask, SerInList,
-    ServerInfo, SimpleListItem,
+    LoginResponse, Media, PublicServerInfo, RemoteSearchInfo, RemoteSearchResult, ScheduledTask,
+    SerInList, ServerInfo, SimpleListItem,
 };
 
 pub static EMBY_CLIENT: Lazy<EmbyClient> = Lazy::new(EmbyClient::default);
@@ -33,11 +35,22 @@ static DEVICE_NAME: Lazy<String> = Lazy::new(|| {
         .to_string()
 });
 
+#[derive(PartialEq)]
+pub enum BackType {
+    Start,
+    Stop,
+    Back,
+}
+
 pub struct EmbyClient {
     pub url: Mutex<Option<Url>>,
     pub client: reqwest::Client,
     pub headers: Mutex<reqwest::header::HeaderMap>,
     pub user_id: Mutex<String>,
+    pub user_name: Mutex<String>,
+    pub user_password: Mutex<String>,
+    pub user_access_token: Mutex<String>,
+    pub server_name: Mutex<String>,
 }
 
 impl EmbyClient {
@@ -63,14 +76,21 @@ impl EmbyClient {
             client: ReqClient::build(),
             headers: Mutex::new(headers),
             user_id: Mutex::new(String::new()),
+            user_name: Mutex::new(String::new()),
+            user_password: Mutex::new(String::new()),
+            user_access_token: Mutex::new(String::new()),
+            server_name: Mutex::new(String::new()),
         }
     }
 
-    pub fn init(&self, account: &Account) {
-        self.header_change_url(&account.server, &account.port);
-        self.header_change_token(&account.access_token);
-        self.set_user_id(&account.user_id);
-        load_env(account);
+    pub fn init(&self, account: &Account) -> Result<(), Box<dyn std::error::Error>> {
+        self.header_change_url(&account.server, &account.port)?;
+        self.header_change_token(&account.access_token)?;
+        self.set_user_id(&account.user_id)?;
+        self.set_user_name(&account.username)?;
+        self.set_user_password(&account.password)?;
+        self.set_user_access_token(&account.access_token)?;
+        self.set_server_name(&account.servername)?;
         crate::ui::provider::set_admin(false);
         spawn(async move {
             spawn_tokio(async move {
@@ -85,65 +105,132 @@ impl EmbyClient {
             })
             .await;
         });
+        Ok(())
     }
 
-    pub fn header_change_token(&self, token: &str) {
-        let mut headers = self.headers.lock().unwrap();
-        headers.insert("X-Emby-Token", HeaderValue::from_str(token).unwrap());
+    pub fn header_change_token(&self, token: &str) -> Result<()> {
+        let mut headers = self
+            .headers
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on headers"))?;
+        headers.insert("X-Emby-Token", HeaderValue::from_str(token)?);
+        Ok(())
     }
 
-    pub fn header_change_url(&self, url: &str, port: &str) {
-        let mut url = Url::parse(url).unwrap();
+    pub fn header_change_url(&self, url: &str, port: &str) -> Result<()> {
+        let mut url = Url::parse(url)?;
         url.set_port(Some(port.parse::<u16>().unwrap_or_default()))
-            .unwrap();
-        let mut url_lock = self.url.lock().unwrap();
-        *url_lock = Some(url.join("emby/").unwrap());
+            .map_err(|_| anyhow!("Failed to set port"))?;
+        let mut url_lock = self
+            .url
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on URL"))?;
+        *url_lock = Some(url.join("emby/")?);
+        Ok(())
     }
 
-    pub fn set_user_id(&self, user_id: &str) {
-        let mut user_id_lock = self.user_id.lock().unwrap();
+    pub fn set_user_id(&self, user_id: &str) -> Result<()> {
+        let mut user_id_lock = self
+            .user_id
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on user_id"))?;
         *user_id_lock = user_id.to_string();
+        Ok(())
     }
 
-    pub fn get_url_and_headers(&self) -> (Url, reqwest::header::HeaderMap) {
-        let url = self.url.lock().unwrap().as_ref().unwrap().clone();
-        let headers = self.headers.lock().unwrap().clone();
-        (url, headers)
+    pub fn set_user_name(&self, user_name: &str) -> Result<()> {
+        let mut user_name_lock = self
+            .user_name
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on user_name"))?;
+        *user_name_lock = user_name.to_string();
+        Ok(())
     }
 
-    pub async fn request<T>(&self, path: &str, params: &[(&str, &str)]) -> Result<T, reqwest::Error>
+    pub fn set_user_password(&self, user_password: &str) -> Result<()> {
+        let mut user_password_lock = self
+            .user_password
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on user_password"))?;
+        *user_password_lock = user_password.to_string();
+        Ok(())
+    }
+
+    pub fn set_user_access_token(&self, user_access_token: &str) -> Result<()> {
+        let mut user_access_token_lock = self
+            .user_access_token
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on user_access_token"))?;
+        *user_access_token_lock = user_access_token.to_string();
+        Ok(())
+    }
+
+    pub fn set_server_name(&self, server_name: &str) -> Result<()> {
+        let mut server_name_lock = self
+            .server_name
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on server_name"))?;
+        *server_name_lock = server_name.to_string();
+        Ok(())
+    }
+
+    pub fn get_url_and_headers(&self) -> Result<(Url, reqwest::header::HeaderMap)> {
+        let url = self
+            .url
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on URL"))?
+            .as_ref()
+            .ok_or_else(|| anyhow!("URL is not set"))?
+            .clone();
+        let headers = self
+            .headers
+            .lock()
+            .map_err(|_| anyhow!("Failed to acquire lock on headers"))?
+            .clone();
+        Ok((url, headers))
+    }
+
+    pub async fn request<T>(&self, path: &str, params: &[(&str, &str)]) -> Result<T>
     where
         T: for<'de> Deserialize<'de> + Send + 'static,
     {
-        let request = self.prepare_request(Method::GET, path, params);
+        let request = self.prepare_request(Method::GET, path, params)?;
+        let res = self.send_request(request).await?.error_for_status()?;
+
+        let json = res.json().await?;
+        Ok(json)
+    }
+
+    pub async fn request_picture(&self, path: &str, params: &[(&str, &str)]) -> Result<Response> {
+        let request = self.prepare_request(Method::GET, path, params)?;
+        let res = request.send().await?;
+        Ok(res)
+    }
+
+    pub async fn post<B>(&self, path: &str, params: &[(&str, &str)], body: B) -> Result<Response>
+    where
+        B: Serialize,
+    {
+        let request = self
+            .prepare_request(Method::POST, path, params)?
+            .json(&body);
         let res = self.send_request(request).await?;
-
-        match res.error_for_status() {
-            Ok(res) => Ok(res.json().await?),
-            Err(e) => Err(e),
-        }
+        Ok(res)
     }
 
-    pub async fn request_picture(
-        &self,
-        path: &str,
-        params: &[(&str, &str)],
-    ) -> Result<Response, reqwest::Error> {
-        let request = self.prepare_request(Method::GET, path, params);
-        request.send().await
-    }
-
-    pub async fn post<B>(
+    pub async fn post_json<B, T>(
         &self,
         path: &str,
         params: &[(&str, &str)],
         body: B,
-    ) -> Result<Response, reqwest::Error>
+    ) -> Result<T, anyhow::Error>
     where
         B: Serialize,
+        T: DeserializeOwned,
     {
-        let request = self.prepare_request(Method::POST, path, params).json(&body);
-        self.send_request(request).await
+        let response = self.post(path, params, body).await?.error_for_status()?;
+        let parsed = response.json::<T>().await?;
+        Ok(parsed)
     }
 
     fn prepare_request(
@@ -151,39 +238,30 @@ impl EmbyClient {
         method: Method,
         path: &str,
         params: &[(&str, &str)],
-    ) -> RequestBuilder {
-        let (mut url, headers) = self.get_url_and_headers();
-        url = url.join(path).unwrap();
+    ) -> Result<RequestBuilder> {
+        let (mut url, headers) = self.get_url_and_headers()?;
+        url = url.join(path)?;
         self.add_params_to_url(&mut url, params);
-        self.client.request(method, url).headers(headers)
+        Ok(self.client.request(method, url).headers(headers))
     }
 
-    async fn send_request(
-        &self,
-        request: reqwest::RequestBuilder,
-    ) -> Result<Response, reqwest::Error> {
+    async fn send_request(&self, request: RequestBuilder) -> Result<Response> {
         let res = request.send().await?;
         Ok(res)
     }
 
-    pub async fn authenticate_admin(&self) -> Result<AuthenticateResponse, reqwest::Error> {
+    pub async fn authenticate_admin(&self) -> Result<AuthenticateResponse> {
         let path = format!("Users/{}", self.user_id());
-        self.request(&path, &[]).await
+        let res = self.request(&path, &[]).await?;
+        Ok(res)
     }
 
-    pub async fn login(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<LoginResponse, reqwest::Error> {
+    pub async fn login(&self, username: &str, password: &str) -> Result<LoginResponse> {
         let body = json!({
             "Username": username,
             "Pw": password
         });
-        self.post("Users/authenticatebyname", &[], body)
-            .await?
-            .json()
-            .await
+        self.post_json("Users/authenticatebyname", &[], body).await
     }
 
     pub fn add_params_to_url(&self, url: &mut Url, params: &[(&str, &str)]) {
@@ -193,12 +271,7 @@ impl EmbyClient {
         info!("Request URL: {}", url);
     }
 
-    pub async fn search(
-        &self,
-        query: &str,
-        filter: &[&str],
-        start_index: &str,
-    ) -> Result<List, reqwest::Error> {
+    pub async fn search(&self, query: &str, filter: &[&str], start_index: &str) -> Result<List> {
         let filter_str = filter.join(",");
         let path = format!("Users/{}/Items", self.user_id());
         let params = [
@@ -211,7 +284,7 @@ impl EmbyClient {
             ("StartIndex", start_index),
             ("SortBy", "SortName"),
             ("SortOrder", "Ascending"),
-            ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+            ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
             ("ImageTypeLimit", "1"),
             ("Recursive", "true"),
             ("SearchTerm", query),
@@ -221,45 +294,48 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn get_series_info(&self, id: &str) -> Result<SerInList, reqwest::Error> {
+    pub async fn get_episodes(&self, id: &str, season_id: &str) -> Result<SerInList> {
         let path = format!("Shows/{}/Episodes", id);
         let params = [
-            ("Fields", "Overview"),
-            ("EnableTotalRecordCount", "true"),
-            ("EnableImages", "true"),
+            (
+                "Fields",
+                "Overview,PrimaryImageAspectRatio,PremiereDate,ProductionYear,SyncStatus",
+            ),
+            ("ImageTypeLimit", "1"),
+            ("SeasonId", season_id),
             ("UserId", &self.user_id()),
         ];
         self.request(&path, &params).await
     }
 
-    pub async fn get_item_info(&self, id: &str) -> Result<Item, reqwest::Error> {
+    pub async fn get_item_info(&self, id: &str) -> Result<Item> {
         let path = format!("Users/{}/Items/{}", self.user_id(), id);
         let params = [("Fields", "ShareLevel")];
         self.request(&path, &params).await
     }
 
-    pub async fn get_edit_info(&self, id: &str) -> Result<Item, reqwest::Error> {
+    pub async fn get_edit_info(&self, id: &str) -> Result<Item> {
         let path = format!("Users/{}/Items/{}", self.user_id(), id);
         let params = [("Fields", "ChannelMappingInfo")];
         self.request(&path, &params).await
     }
 
-    pub async fn get_resume(&self) -> Result<List, reqwest::Error> {
+    pub async fn get_resume(&self) -> Result<List> {
         let path = format!("Users/{}/Items/Resume", self.user_id());
         let params = [
             ("Recursive", "true"),
             (
                 "Fields",
-                "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,CommunityRating",
+                "Overview,BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,CommunityRating",
             ),
-            ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+            ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
             ("ImageTypeLimit", "1"),
             ("MediaTypes", "Video"),
         ];
         self.request(&path, &params).await
     }
 
-    pub async fn get_image_items(&self, id: &str) -> Result<Vec<ImageItem>, reqwest::Error> {
+    pub async fn get_image_items(&self, id: &str) -> Result<Vec<ImageItem>> {
         let path = format!("Items/{}/Images", id);
         self.request(&path, &[]).await
     }
@@ -269,7 +345,7 @@ impl EmbyClient {
         id: &str,
         image_type: &str,
         tag: Option<u8>,
-    ) -> Result<Response, reqwest::Error> {
+    ) -> Result<Response> {
         let mut path = format!("Items/{}/Images/{}", id, image_type);
         if let Some(tag) = tag {
             path.push_str(&format!("/{}", tag));
@@ -288,19 +364,14 @@ impl EmbyClient {
                 if image_type == "Backdrop" {
                     "1280"
                 } else {
-                    "600"
+                    "300"
                 },
             ),
         ];
         self.request_picture(&path, &params).await
     }
 
-    pub async fn get_image(
-        &self,
-        id: &str,
-        image_type: &str,
-        tag: Option<u8>,
-    ) -> Result<String, reqwest::Error> {
+    pub async fn get_image(&self, id: &str, image_type: &str, tag: Option<u8>) -> Result<String> {
         match self.image_request(id, image_type, tag).await {
             Ok(response) => {
                 let bytes = response.bytes().await?;
@@ -325,11 +396,7 @@ impl EmbyClient {
         path.to_string_lossy().to_string()
     }
 
-    pub async fn get_artist_albums(
-        &self,
-        id: &str,
-        artist_id: &str,
-    ) -> Result<List, reqwest::Error> {
+    pub async fn get_artist_albums(&self, id: &str, artist_id: &str) -> Result<List> {
         let path = format!("Users/{}/Items", self.user_id());
         let params = [
             ("IncludeItemTypes", "MusicAlbum"),
@@ -337,7 +404,7 @@ impl EmbyClient {
             ("ImageTypeLimit", "1"),
             ("Limit", "12"),
             ("SortBy", "ProductionYear,SortName"),
-            ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+            ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
             ("SortOrder", "Descending"),
             (
                 "Fields",
@@ -349,7 +416,19 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn get_playbackinfo(&self, id: &str) -> Result<Media, reqwest::Error> {
+    pub async fn get_shows_next_up(&self, series_id: &str) -> Result<List> {
+        let path = "Shows/NextUp".to_string();
+        let params = [
+            ("Fields", "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio"),
+            ("Limit", "1"),
+            ("ImageTypeLimit", "1"),
+            ("SeriesId", series_id),
+            ("UserId", &self.user_id()),
+        ];
+        self.request(&path, &params).await
+    }
+
+    pub async fn get_playbackinfo(&self, id: &str) -> Result<Media> {
         let path = format!("Items/{}/PlaybackInfo", id);
         let params = [
             ("StartTimeTicks", "0"),
@@ -361,11 +440,11 @@ impl EmbyClient {
             ("MaxStreamingBitrate", "160000000"),
             ("reqformat", "json"),
         ];
-        let profile: Value = serde_json::from_str(PROFILE).unwrap();
-        self.post(&path, &params, profile).await?.json().await
+        let profile: Value = serde_json::from_str(PROFILE).expect("Failed to parse profile");
+        self.post_json(&path, &params, profile).await
     }
 
-    pub async fn scan(&self, id: &str) -> Result<Response, reqwest::Error> {
+    pub async fn scan(&self, id: &str) -> Result<Response> {
         let path = format!("Items/{}/Refresh", id);
         let params = [
             ("Recursive", "true"),
@@ -382,7 +461,7 @@ impl EmbyClient {
         id: &str,
         replace_images: &str,
         replace_metadata: &str,
-    ) -> Result<Response, reqwest::Error> {
+    ) -> Result<Response> {
         let path = format!("Items/{}/Refresh", id);
         let params = [
             ("Recursive", "true"),
@@ -398,23 +477,28 @@ impl EmbyClient {
         &self,
         type_: &str,
         info: &RemoteSearchInfo,
-    ) -> Result<Vec<RemoteSearchResult>, reqwest::Error> {
+    ) -> Result<Vec<RemoteSearchResult>> {
         let path = format!("Items/RemoteSearch/{}", type_);
-        println!("{}", path);
         let body = json!(info);
-        self.post(&path, &[], body).await?.json().await
+        self.post_json(&path, &[], body).await
     }
 
-    pub async fn get_external_id_info(
-        &self,
-        id: &str,
-    ) -> Result<Vec<ExternalIdInfo>, reqwest::Error> {
+    pub async fn get_user_avatar(&self) -> Result<String> {
+        let path = format!("Users/{}/Images/Primary", self.user_id());
+        let params = [("maxHeight", "50"), ("maxWidth", "50")];
+        let response = self.request_picture(&path, &params).await?;
+        let bytes = response.bytes().await?;
+        let path = self.save_image(&self.user_id(), "Primary", None, &bytes);
+        Ok(path)
+    }
+
+    pub async fn get_external_id_info(&self, id: &str) -> Result<Vec<ExternalIdInfo>> {
         let path = format!("Items/{}/ExternalIdInfos", id);
         let params = [("IsSupportedAsIdentifier", "true")];
         self.request(&path, &params).await
     }
 
-    pub async fn get_live_playbackinfo(&self, id: &str) -> Result<LiveMedia, reqwest::Error> {
+    pub async fn get_live_playbackinfo(&self, id: &str) -> Result<LiveMedia> {
         let path = format!("Items/{}/PlaybackInfo", id);
         let params = [
             ("StartTimeTicks", "0"),
@@ -425,10 +509,10 @@ impl EmbyClient {
             ("reqformat", "json"),
         ];
         let profile: Value = serde_json::from_str(LIVEPROFILE).unwrap();
-        self.post(&path, &params, profile).await?.json().await
+        self.post_json(&path, &params, profile).await
     }
 
-    pub async fn get_sub(&self, id: &str, source_id: &str) -> Result<Media, reqwest::Error> {
+    pub async fn get_sub(&self, id: &str, source_id: &str) -> Result<Media> {
         let path = format!("Items/{}/PlaybackInfo", id);
         let params = [
             ("StartTimeTicks", "0"),
@@ -442,15 +526,15 @@ impl EmbyClient {
             ("reqformat", "json"),
         ];
         let profile: Value = serde_json::from_str(PROFILE).unwrap();
-        self.post(&path, &params, profile).await?.json().await
+        self.post_json(&path, &params, profile).await
     }
 
-    pub async fn get_library(&self) -> Result<List, reqwest::Error> {
+    pub async fn get_library(&self) -> Result<List> {
         let path = format!("Users/{}/Views", &self.user_id());
         self.request(&path, &[]).await
     }
 
-    pub async fn get_latest(&self, id: &str) -> Result<Vec<SimpleListItem>, reqwest::Error> {
+    pub async fn get_latest(&self, id: &str) -> Result<Vec<SimpleListItem>> {
         let path = format!("Users/{}/Items/Latest", &self.user_id());
         let params = [
             ("Limit", "16"),
@@ -460,7 +544,7 @@ impl EmbyClient {
             ),
             ("ParentId", id),
             ("ImageTypeLimit", "1"),
-            ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+            ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
         ];
         self.request(&path, &params).await
     }
@@ -472,52 +556,53 @@ impl EmbyClient {
 
     pub async fn get_list(
         &self,
-        id: String,
-        start: &str,
+        id: &str,
+        start: u32,
         include_item_types: &str,
-        listtype: &str,
+        list_type: ListType,
         sort_order: &str,
         sortby: &str,
-    ) -> Result<List, reqwest::Error> {
+    ) -> Result<List> {
         let user_id = &self.user_id();
-        let path = match listtype {
-            "item" => format!("Users/{}/Items", user_id),
-            "resume" => format!("Users/{}/Items/Resume", user_id),
-            "genres" => "Genres".to_string(),
+        let path = match list_type {
+            ListType::All => format!("Users/{}/Items", user_id),
+            ListType::Resume => format!("Users/{}/Items/Resume", user_id),
+            ListType::Genres => "Genres".to_string(),
             _ => format!("Users/{}/Items", user_id),
         };
-        let include_item_type = match listtype {
-            "tags" => "Tag",
-            "boxset" => "BoxSet",
+        let include_item_type = match list_type {
+            ListType::Tags => "Tag",
+            ListType::BoxSet => "BoxSet",
             _ => include_item_types,
         };
-        let params = match listtype {
-            "all" | "liked" | "tags" | "boxset" => {
+        let start_string = start.to_string();
+        let params = match list_type {
+            ListType::All | ListType::Liked | ListType::Tags | ListType::BoxSet => {
                 vec![
                     ("Limit", "50"),
                     (
                         "Fields",
-                        "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,CommunityRating",
+                        "Overview,BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,CommunityRating",
                     ),
-                    ("ParentId", &id),
+                    ("ParentId", id),
                     ("ImageTypeLimit", "1"),
-                    ("StartIndex", start),
+                    ("StartIndex", &start_string),
                     ("Recursive", "true"),
                     ("IncludeItemTypes", include_item_type),
                     ("SortBy", sortby),
                     ("SortOrder", sort_order),
-                    ("EnableImageTypes", "Primary,Backdrop,Thumb"),
-                    if listtype == "liked" {("Filters", "IsFavorite")} else {("", "")},
+                    ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
+                    if list_type == ListType::Liked {("Filters", "IsFavorite")} else {("", "")},
                 ]
             }
-            "resume" => {
+            ListType::Resume => {
                 vec![
                     (
                         "Fields",
-                        "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear",
+                        "Overview,BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear",
                     ),
-                    ("ParentId", &id),
-                    ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+                    ("ParentId", id),
+                    ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
                     ("ImageTypeLimit", "1"),
                     (
                         "IncludeItemTypes",
@@ -529,18 +614,16 @@ impl EmbyClient {
                     ("Limit", "30"),
                 ]
             }
-            "genres" => vec![
+            ListType::Genres => vec![
                 ("Fields", "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio"),
                 ("IncludeItemTypes", include_item_type),
-                ("StartIndex", start),
+                ("StartIndex", &start_string),
                 ("ImageTypeLimit", "1"),
-                ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+                ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
                 ("Limit", "50"),
                 ("userId", user_id),
                 ("Recursive", "true"),
-                ("ParentId", &id),
-                ("SortBy", sortby),
-                ("SortOrder", sort_order),
+                ("ParentId", id),
             ],
             _ => vec![],
         };
@@ -550,26 +633,27 @@ impl EmbyClient {
     pub async fn get_inlist(
         &self,
         id: Option<String>,
-        start: &str,
+        start: u32,
         listtype: &str,
         parentid: &str,
         sort_order: &str,
         sortby: &str,
-    ) -> Result<List, reqwest::Error> {
+    ) -> Result<List> {
         let path = format!("Users/{}/Items", &self.user_id());
+        let start_string = start.to_string();
         let mut params = vec![
             ("Limit", "50"),
             (
                 "Fields",
-                "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,CommunityRating",
+                "Overview,BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,CommunityRating",
             ),
             ("ImageTypeLimit", "1"),
-            ("StartIndex", start),
+            ("StartIndex", &start_string),
             ("Recursive", "true"),
             ("IncludeItemTypes", "Movie,Series,MusicAlbum"),
             ("SortBy", sortby),
             ("SortOrder", sort_order),
-            ("EnableImageTypes", "Primary,Backdrop,Thumb"),
+            ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
             if listtype == "Genre" {
                 ("GenreIds", parentid)
             } else if listtype == "Studios" {
@@ -586,7 +670,7 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn like(&self, id: &str) -> Result<(), reqwest::Error> {
+    pub async fn like(&self, id: &str) -> Result<()> {
         let path = format!(
             "Users/{}/FavoriteItems/{}",
             &self.user_id.lock().unwrap(),
@@ -596,7 +680,7 @@ impl EmbyClient {
         Ok(())
     }
 
-    pub async fn unlike(&self, id: &str) -> Result<(), reqwest::Error> {
+    pub async fn unlike(&self, id: &str) -> Result<()> {
         let path = format!(
             "Users/{}/FavoriteItems/{}/Delete",
             &self.user_id.lock().unwrap(),
@@ -606,13 +690,13 @@ impl EmbyClient {
         Ok(())
     }
 
-    pub async fn set_as_played(&self, id: &str) -> Result<(), reqwest::Error> {
+    pub async fn set_as_played(&self, id: &str) -> Result<()> {
         let path = format!("Users/{}/PlayedItems/{}", &self.user_id(), id);
         self.post(&path, &[], json!({})).await?;
         Ok(())
     }
 
-    pub async fn set_as_unplayed(&self, id: &str) -> Result<(), reqwest::Error> {
+    pub async fn set_as_unplayed(&self, id: &str) -> Result<()> {
         let path = format!(
             "Users/{}/PlayedItems/{}/Delete",
             &self.user_id.lock().unwrap(),
@@ -622,31 +706,19 @@ impl EmbyClient {
         Ok(())
     }
 
-    pub async fn position_back(&self, back: &Back) -> Result<(), reqwest::Error> {
-        let path = "Sessions/Playing/Progress".to_string();
+    pub async fn position_back(&self, back: &Back, backtype: BackType) -> Result<()> {
+        let path = match backtype {
+            BackType::Start => "Sessions/Playing".to_string(),
+            BackType::Stop => "Sessions/Playing/Stopped".to_string(),
+            BackType::Back => "Sessions/Playing/Progress".to_string(),
+        };
         let params = [("reqformat", "json")];
-        let body = json!({"VolumeLevel":100,"IsMuted":false,"IsPaused":false,"RepeatMode":"RepeatNone","SubtitleOffset":0,"PlaybackRate":1,"MaxStreamingBitrate":4000000,"PositionTicks":back.tick,"PlaybackStartTimeTicks":0,"SubtitleStreamIndex":1,"AudioStreamIndex":1,"BufferedRanges":[],"PlayMethod":"DirectStream","PlaySessionId":back.playsessionid,"MediaSourceId":back.mediasourceid,"CanSeek":true,"ItemId":back.id,"PlaylistIndex":0,"PlaylistLength":23,"NextMediaType":"Video"});
+        let body = json!({"VolumeLevel":100,"IsMuted":false,"IsPaused":false,"RepeatMode":"RepeatNone","SubtitleOffset":0,"PlaybackRate":1,"MaxStreamingBitrate": 400000000u64,"PositionTicks":back.tick,"PlaybackStartTimeTicks":0,"SubtitleStreamIndex":1,"AudioStreamIndex":1,"BufferedRanges":[],"PlayMethod":"DirectStream","PlaySessionId":back.playsessionid,"MediaSourceId":back.mediasourceid,"CanSeek":true,"ItemId":back.id,"PlaylistIndex":0,"PlaylistLength":23,"NextMediaType":"Video"});
         self.post(&path, &params, body).await?;
         Ok(())
     }
 
-    pub async fn position_stop(&self, back: &Back) -> Result<(), reqwest::Error> {
-        let path = "Sessions/Playing/Stopped".to_string();
-        let params = [("reqformat", "json")];
-        let body = json!({"VolumeLevel":100,"IsMuted":false,"IsPaused":false,"RepeatMode":"RepeatNone","SubtitleOffset":0,"PlaybackRate":1,"MaxStreamingBitrate":4000000,"PositionTicks":back.tick,"PlaybackStartTimeTicks":0,"SubtitleStreamIndex":1,"AudioStreamIndex":1,"BufferedRanges":[],"PlayMethod":"DirectStream","PlaySessionId":back.playsessionid,"MediaSourceId":back.mediasourceid,"CanSeek":true,"ItemId":back.id,"PlaylistIndex":0,"PlaylistLength":23,"NextMediaType":"Video"});
-        self.post(&path, &params, body).await?;
-        Ok(())
-    }
-
-    pub async fn position_start(&self, back: &Back) -> Result<(), reqwest::Error> {
-        let path = "Sessions/Playing".to_string();
-        let params = [("reqformat", "json")];
-        let body = json!({"VolumeLevel":100,"IsMuted":false,"IsPaused":false,"RepeatMode":"RepeatNone","SubtitleOffset":0,"PlaybackRate":1,"MaxStreamingBitrate":4000000,"PositionTicks":back.tick,"PlaybackStartTimeTicks":0,"SubtitleStreamIndex":1,"AudioStreamIndex":1,"BufferedRanges":[],"PlayMethod":"DirectStream","PlaySessionId":back.playsessionid,"MediaSourceId":back.mediasourceid,"CanSeek":true,"ItemId":back.id,"PlaylistIndex":0,"PlaylistLength":23,"NextMediaType":"Video"});
-        self.post(&path, &params, body).await?;
-        Ok(())
-    }
-
-    pub async fn get_similar(&self, id: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_similar(&self, id: &str) -> Result<List> {
         let path = format!("Items/{}/Similar", id);
         let params = [
             (
@@ -660,7 +732,7 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn get_person(&self, id: &str, types: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_person(&self, id: &str, types: &str) -> Result<List> {
         let path = format!("Users/{}/Items", &self.user_id());
         let params = [
             (
@@ -679,7 +751,65 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn get_search_recommend(&self) -> Result<List, reqwest::Error> {
+    pub async fn get_person_large_list(
+        &self,
+        id: &str,
+        types: &str,
+        sort_by: &str,
+        sort_order: &str,
+        start_index: u32,
+    ) -> Result<List> {
+        let start_string = start_index.to_string();
+        let path = format!("Users/{}/Items", &self.user_id());
+        let params = [
+            (
+                "Fields",
+                "Overview,PrimaryImageAspectRatio,ProductionYear,CommunityRating",
+            ),
+            ("PersonIds", id),
+            ("Recursive", "true"),
+            ("CollapseBoxSetItems", "false"),
+            ("SortBy", sort_by),
+            ("SortOrder", sort_order),
+            ("IncludeItemTypes", types),
+            ("StartIndex", &start_string),
+            ("ImageTypeLimit", "1"),
+            ("Limit", "50"),
+        ];
+        self.request(&path, &params).await
+    }
+
+    pub async fn get_continue_play_list(&self, parent_id: &str) -> Result<List> {
+        let path = "Shows/NextUp".to_string();
+        let params = [
+            (
+                "Fields",
+                "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,Overview",
+            ),
+            ("Limit", "40"),
+            ("ImageTypeLimit", "1"),
+            ("SeriesId", parent_id),
+            ("UserId", &self.user_id()),
+        ];
+        self.request(&path, &params).await
+    }
+
+    pub async fn get_season_list(&self, parent_id: &str) -> Result<List> {
+        let path = format!("Shows/{}/Seasons", parent_id);
+        let params = [
+            (
+                "Fields",
+                "BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,Overview",
+            ),
+            ("UserId", &self.user_id()),
+            ("EnableUserData", "false"),
+            ("EnableTotalRecordCount", "false"),
+            ("EnableImages", "false"),
+        ];
+        self.request(&path, &params).await
+    }
+
+    pub async fn get_search_recommend(&self) -> Result<List> {
         let path = format!("Users/{}/Items", &self.user_id());
         let params = [
             ("Limit", "20"),
@@ -698,7 +828,9 @@ impl EmbyClient {
         types: &str,
         start: u32,
         limit: u32,
-    ) -> Result<List, reqwest::Error> {
+        sort_by: &str,
+        sort_order: &str,
+    ) -> Result<List> {
         let user_id = {
             let user_id = self.user_id.lock().unwrap();
             user_id.to_owned()
@@ -716,8 +848,8 @@ impl EmbyClient {
             ("Filters", "IsFavorite"),
             ("Recursive", "true"),
             ("CollapseBoxSetItems", "false"),
-            ("SortBy", "SortName"),
-            ("SortOrder", "Ascending"),
+            ("SortBy", sort_by),
+            ("SortOrder", sort_order),
             ("IncludeItemTypes", types),
             ("Limit", &limit.to_string()),
             ("StartIndex", &start.to_string()),
@@ -730,7 +862,7 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn get_included(&self, id: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_included(&self, id: &str) -> Result<List> {
         let path = format!("Users/{}/Items", &self.user_id());
         let params = [
             (
@@ -747,7 +879,7 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn get_includedby(&self, parent_id: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_includedby(&self, parent_id: &str) -> Result<List> {
         let path = format!("Users/{}/Items", &self.user_id());
         let params = [
             (
@@ -764,29 +896,31 @@ impl EmbyClient {
         self.request(&path, &params).await
     }
 
-    pub async fn change_password(&self, new_password: &str) -> Result<(), reqwest::Error> {
+    pub async fn change_password(&self, new_password: &str) -> Result<()> {
         let path = format!("Users/{}/Password", &self.user_id());
-        let old_password = std::env::var("EMBY_PASSWORD").unwrap_or("".to_string());
+
+        let old_password = match self.user_password.lock() {
+            Ok(guard) => guard.to_string(),
+            Err(_) => return Err(anyhow::anyhow!("Failed to acquire lock on user password")),
+        };
+
         let body = json!({
             "CurrentPw": old_password,
             "NewPw": new_password
         });
+
         self.post(&path, &[], body).await?;
         Ok(())
     }
 
-    pub async fn hide_from_resume(&self, id: &str) -> Result<(), reqwest::Error> {
-        let path = format!(
-            "Users/{}/Items/{}/HideFromResume",
-            &self.user_id.lock().unwrap(),
-            id
-        );
+    pub async fn hide_from_resume(&self, id: &str) -> Result<()> {
+        let path = format!("Users/{}/Items/{}/HideFromResume", &self.user_id(), id);
         let params = [("Hide", "true")];
         self.post(&path, &params, json!({})).await?;
         Ok(())
     }
 
-    pub async fn get_songs(&self, parent_id: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_songs(&self, parent_id: &str) -> Result<List> {
         let path = format!("Users/{}/Items", &self.user_id());
         let params = [
             (
@@ -804,36 +938,20 @@ impl EmbyClient {
         let url = self.url.lock().unwrap().as_ref().unwrap().clone();
 
         url.join(&format!("Audio/{}/universal?UserId={}&DeviceId={}&MaxStreamingBitrate=4000000&Container=opus,mp3|mp3,mp2,mp3|mp2,m4a|aac,mp4|aac,flac,webma,webm,wav|PCM_S16LE,wav|PCM_S24LE,ogg&TranscodingContainer=aac&TranscodingProtocol=hls&AudioCodec=aac&api_key={}&PlaySessionId=1715006733496&StartTimeTicks=0&EnableRedirection=true&EnableRemoteMedia=false",
-        id, &self.user_id(), &DEVICE_ID.to_string(), std::env::var("EMBY_ACCESS_TOKEN").unwrap(), )).unwrap().to_string()
-    }
-
-    pub async fn get_random(&self) -> Result<List, reqwest::Error> {
-        let path = format!("Users/{}/Items", &self.user_id());
-        let params = [
-            ("Fields", "ProductionYear,CommunityRating"),
-            ("EnableImageTypes", "Logo,Backdrop"),
-            ("ImageTypeLimit", "1"),
-            ("EnableTotalRecordCount", "false"),
-            ("SortBy", "Random"),
-            ("Limit", "10"),
-            ("Recursive", "true"),
-            ("IncludeItemTypes", "Series"),
-            ("EnableUserData", "false"),
-        ];
-        self.request(&path, &params).await
+        id, &self.user_id(), &DEVICE_ID.to_string(), self.user_access_token.lock().unwrap(), )).unwrap().to_string()
     }
 
     fn user_id(&self) -> String {
         self.user_id.lock().unwrap().to_string()
     }
 
-    pub async fn get_additional(&self, id: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_additional(&self, id: &str) -> Result<List> {
         let path = format!("Videos/{}/AdditionalParts", id);
         let params: [(&str, &str); 1] = [("UserId", &self.user_id())];
         self.request(&path, &params).await
     }
 
-    pub async fn get_channels(&self) -> Result<List, reqwest::Error> {
+    pub async fn get_channels(&self) -> Result<List> {
         let params = [
             ("IsAiring", "true"),
             ("userId", &self.user_id()),
@@ -846,7 +964,7 @@ impl EmbyClient {
         self.request("LiveTv/Channels", &params).await
     }
 
-    pub async fn get_channels_list(&self, start_index: &str) -> Result<List, reqwest::Error> {
+    pub async fn get_channels_list(&self, start_index: u32) -> Result<List> {
         let params = [
             ("IsAiring", "true"),
             ("userId", &self.user_id()),
@@ -855,27 +973,28 @@ impl EmbyClient {
             ("Fields", "ProgramPrimaryImageAspectRatio"),
             ("SortBy", "DefaultChannelOrder"),
             ("SortOrder", "Ascending"),
-            ("StartIndex", start_index),
+            ("StartIndex", &start_index.to_string()),
         ];
         self.request("LiveTv/Channels", &params).await
     }
 
-    pub async fn get_server_info(&self) -> Result<ServerInfo, reqwest::Error> {
+    pub async fn get_server_info(&self) -> Result<ServerInfo> {
         self.request("System/Info", &[]).await
     }
 
-    pub async fn shut_down(&self) -> Result<Response, reqwest::Error> {
+    pub async fn get_server_info_public(&self) -> Result<PublicServerInfo> {
+        self.request("System/Info/Public", &[]).await
+    }
+
+    pub async fn shut_down(&self) -> Result<Response> {
         self.post("System/Shutdown", &[], json!({})).await
     }
 
-    pub async fn restart(&self) -> Result<Response, reqwest::Error> {
+    pub async fn restart(&self) -> Result<Response> {
         self.post("System/Restart", &[], json!({})).await
     }
 
-    pub async fn get_activity_log(
-        &self,
-        has_user_id: bool,
-    ) -> Result<ActivityLogs, reqwest::Error> {
+    pub async fn get_activity_log(&self, has_user_id: bool) -> Result<ActivityLogs> {
         let params = [
             ("Limit", "15"),
             ("StartIndex", "0"),
@@ -884,11 +1003,11 @@ impl EmbyClient {
         self.request("System/ActivityLog/Entries", &params).await
     }
 
-    pub async fn get_scheduled_tasks(&self) -> Result<Vec<ScheduledTask>, reqwest::Error> {
+    pub async fn get_scheduled_tasks(&self) -> Result<Vec<ScheduledTask>> {
         self.request("ScheduledTasks", &[]).await
     }
 
-    pub async fn run_scheduled_task(&self, id: String) -> Result<(), reqwest::Error> {
+    pub async fn run_scheduled_task(&self, id: String) -> Result<()> {
         let path = format!("ScheduledTasks/Running/{}", &id);
         self.post(&path, &[], json!({})).await?;
         Ok(())
@@ -920,13 +1039,13 @@ mod tests {
 
     #[tokio::test]
     async fn search() {
-        EMBY_CLIENT.header_change_url("https://example.com", "443");
+        let _ = EMBY_CLIENT.header_change_url("https://example.com", "443");
         let result = EMBY_CLIENT.login("test", "test").await;
         match result {
             Ok(response) => {
                 println!("{}", response.access_token);
-                EMBY_CLIENT.header_change_token(&response.access_token);
-                EMBY_CLIENT.set_user_id(&response.user.id);
+                let _ = EMBY_CLIENT.header_change_token(&response.access_token);
+                let _ = EMBY_CLIENT.set_user_id(&response.user.id);
             }
             Err(e) => {
                 eprintln!("{}", e.to_user_facing());
@@ -944,5 +1063,17 @@ mod tests {
                 eprintln!("{}", e.to_user_facing());
             }
         }
+    }
+
+    #[test]
+    fn parse_url() {
+        let uri = "127.0.0.1";
+        let url = if Url::parse(uri).is_err() {
+            format!("http://{}", uri)
+        } else {
+            uri.to_string()
+        };
+        
+        assert_eq!(url, "http://127.0.0.1");
     }
 }

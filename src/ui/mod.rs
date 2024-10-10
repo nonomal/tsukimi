@@ -1,23 +1,26 @@
-mod clapper;
 pub(crate) mod models;
 mod mpv;
 pub mod provider;
 pub mod widgets;
 use self::models::SETTINGS;
+use adw::prelude::*;
+use gettextrs::gettext;
 use gtk::gdk::Display;
-use gtk::{prelude::*, CssProvider};
+use gtk::CssProvider;
 
 pub fn build_ui(app: &adw::Application) {
     // Create new window and present it
     let window = widgets::window::Window::new(app);
     let about_action = gtk::gio::ActionEntry::builder("about")
         .activate(|_, _, _| {
-            let about = adw::AboutWindow::builder()
+            let about = adw::AboutDialog::builder()
                 .application_name("Tsukimi")
                 .version(crate::config::APP_VERSION)
                 .comments(
-                    "A simple third-party Emby client.\nVersion: tsukimi 0.11.0 \n2024.7.18 15:29",
+                    "A simple third-party Emby client.\nVersion: tsukimi 0.15.1 \n2024.10.09 17:33",
                 )
+                // TRANSLATORS: 'Name <email@domain.com>' or 'Name https://website.example'
+                .translator_credits(gettext("translator-credits"))
                 .website("https://github.com/tsukinaha/tsukimi")
                 .application_icon("tsukimi")
                 .license_type(gtk::License::Gpl30)
@@ -27,7 +30,7 @@ pub fn build_ui(app: &adw::Application) {
                 Some("Special Thanks"),
                 &["Qound", "Eikano", "amtoaer"],
             );
-            about.present();
+            about.present(None::<&gtk::Widget>);
         })
         .build();
     window.add_action_entries([about_action]);
@@ -39,26 +42,7 @@ pub fn load_css() {
 
     let mut styles = String::new();
 
-    match SETTINGS.theme().as_str() {
-        "Catppuccin Latte" => {
-            styles.push_str(include_str!("style.css"));
-        }
-        "Alpha Dark" => {
-            styles.push_str(include_str!("alpha-dark.css"));
-        }
-        "Adwaita" => {
-            styles.push_str(include_str!("adwaita.css"));
-        }
-        "Adwaita Dark" => {
-            styles.push_str(include_str!("adwaitadark.css"));
-        }
-        "???" => {
-            styles.push_str(include_str!("old.css"));
-        }
-        _ => {
-            styles.push_str(include_str!("basic.css"));
-        }
-    }
+    styles.push_str(include_str!("style.css"));
 
     let accent_color = SETTINGS.accent_color_code();
     styles.push_str(&format!(

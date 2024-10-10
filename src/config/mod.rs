@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::io::Write;
-use std::{env, fs::File, io::Read};
-use uuid::Uuid;
+
+use crate::ui::provider::descriptor::VecSerialize;
 
 pub mod proxy;
-pub const APP_VERSION: &str = "0.11.0";
+
+pub const APP_VERSION: &str = "0.15.1";
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -16,17 +16,7 @@ pub struct Config {
     pub access_token: String,
 }
 
-fn generate_uuid() -> String {
-    let uuid = Uuid::new_v4();
-    uuid.to_string()
-}
-
-pub fn load_uuid() {
-    let uuid = generate_uuid();
-    env::set_var("UUID", uuid);
-}
-
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Account {
     pub servername: String,
     pub server: String,
@@ -43,77 +33,50 @@ pub struct Accounts {
     pub accounts: Vec<Account>,
 }
 
-pub async fn save_cfg(account: Account) -> Result<(), Box<dyn std::error::Error>> {
-    let mut path = dirs::config_dir().ok_or("Failed to get home directory")?;
-    std::fs::DirBuilder::new().recursive(true).create(&path)?;
-    path.push("tsukimi.toml");
-    let mut accounts: Accounts = load_cfgv2()?;
-    accounts.accounts.push(account);
-    let toml = toml::to_string(&accounts).unwrap_or_else(|err| {
-        eprintln!("Error while serializing accounts: {:?}", err);
-        std::process::exit(1);
-    });
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&path)?;
-    writeln!(file, "{}", toml)?;
-    Ok(())
-}
-
-pub fn load_cfgv2() -> Result<Accounts, Box<dyn std::error::Error>> {
-    let mut path = dirs::home_dir().ok_or("Failed to get home directory")?;
-    path.push(".config");
-    path.push("tsukimi.toml");
-    if !path.exists() {
-        return Ok(Accounts {
-            accounts: Vec::new(),
-        });
+impl VecSerialize<Account> for Vec<Account> {
+    fn to_string(&self) -> String {
+        serde_json::to_string(&self).expect("Failed to serialize Vec<Descriptor>")
     }
-    let mut file = File::open(&path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    let accounts: Accounts = toml::from_str(&contents)?;
-    Ok(accounts)
 }
 
-pub fn load_env(account: &Account) {
-    env::set_var("EMBY_NAME", &account.servername);
-    env::set_var("EMBY_DOMAIN", &account.server);
-    env::set_var("EMBY_USERNAME", &account.username);
-    env::set_var("EMBY_PASSWORD", &account.password);
-    env::set_var("EMBY_PORT", &account.port);
-    env::set_var("EMBY_USER_ID", &account.user_id);
-    env::set_var("EMBY_ACCESS_TOKEN", &account.access_token);
+pub mod theme {
+    #[cfg(target_os = "windows")]
+    use windows::{core::*, Win32::System::Registry::*};
 
-    let uuid = generate_uuid();
-    env::set_var("UUID", uuid);
-}
+    /// Use windows crate to detect Windows system dark mode as gtk settings does not respect it
+    #[cfg(target_os = "windows")]
+    pub fn is_system_dark_mode_enabled() -> bool {
+        #[cfg(windows)]
+        unsafe {
+            let subkey = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
+            let mut key_handle = HKEY::default();
 
-pub fn remove(account: &Account) -> Result<(), Box<dyn std::error::Error>> {
-    let mut path = dirs::home_dir().ok_or("Failed to get home directory")?;
-    path.push(".config");
-    path.push("tsukimi.toml");
-    let mut accounts: Accounts = load_cfgv2()?;
-    accounts.accounts.retain(|x| {
-        x.servername != account.servername
-            || x.server != account.server
-            || x.username != account.username
-            || x.password != account.password
-            || x.port != account.port
-            || x.user_id != account.user_id
-            || x.access_token != account.access_token
-    });
-    let toml = toml::to_string(&accounts).unwrap_or_else(|err| {
-        eprintln!("Error while serializing accounts: {:?}", err);
-        std::process::exit(1);
-    });
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&path)?;
-    writeln!(file, "{}", toml)?;
-    Ok(())
+            let result = RegOpenKeyExW(HKEY_CURRENT_USER, subkey, 0, KEY_READ, &mut key_handle);
+
+            if result.is_err() {
+                return false;
+            }
+
+            let mut data: u32 = 0;
+            let mut data_size: u32 = std::mem::size_of::<u32>() as u32;
+            let value_name = w!("SystemUsesLightTheme");
+
+            let result = RegQueryValueExW(
+                key_handle,
+                value_name,
+                None,
+                None,
+                Some(&mut data as *mut u32 as *mut u8),
+                Some(&mut data_size),
+            );
+
+            let _ = RegCloseKey(key_handle);
+
+            if result.is_err() {
+                return false;
+            }
+
+            data == 0
+        }
+    }
 }

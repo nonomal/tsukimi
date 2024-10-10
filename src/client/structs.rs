@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -25,23 +26,6 @@ pub struct AuthenticateResponse {
 pub struct Policy {
     #[serde(rename = "IsAdministrator")]
     pub is_administrator: bool,
-}
-
-// single item
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SeriesInfo {
-    #[serde(rename = "Name")]
-    pub name: String,
-    #[serde(rename = "Id")]
-    pub id: String,
-    #[serde(rename = "Overview")]
-    pub overview: Option<String>,
-    #[serde(rename = "IndexNumber")]
-    pub index_number: Option<u32>,
-    #[serde(rename = "ParentIndexNumber")]
-    pub parent_index_number: Option<u32>,
-    #[serde(rename = "UserData")]
-    pub user_data: Option<UserData>,
 }
 
 // media info
@@ -81,6 +65,8 @@ pub struct MediaStream {
     pub channels: Option<u64>,
     #[serde(rename = "ChannelLayout")]
     pub channel_layout: Option<String>,
+    #[serde(rename = "Index")]
+    pub index: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -90,11 +76,15 @@ pub struct MediaSource {
     #[serde(rename = "Name")]
     pub name: String,
     #[serde(rename = "Size")]
-    pub size: u64,
+    pub size: Option<u64>,
     #[serde(rename = "Path")]
     pub path: Option<String>,
+    #[serde(rename = "RunTimeTicks")]
+    pub run_time_ticks: Option<u64>,
+    #[serde(rename = "Bitrate")]
+    pub bit_rate: Option<u64>,
     #[serde(rename = "Container")]
-    pub container: String,
+    pub container: Option<String>,
     #[serde(rename = "DirectStreamUrl")]
     pub direct_stream_url: Option<String>,
     #[serde(rename = "MediaStreams")]
@@ -187,6 +177,8 @@ pub struct Item {
     pub artists: Option<Vec<String>>,
     #[serde(rename = "LockData")]
     pub lock_data: Option<bool>,
+    #[serde(rename = "PartCount")]
+    pub part_count: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -343,6 +335,10 @@ pub struct SimpleListItem {
     pub status: Option<String>,
     #[serde(rename = "EndDate")]
     pub end_date: Option<DateTime<Utc>>,
+    #[serde(rename = "PremiereDate")]
+    pub premiere_date: Option<DateTime<Utc>>,
+    #[serde(rename = "Taglines")]
+    pub taglines: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -380,7 +376,7 @@ pub struct List {
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct SerInList {
     #[serde(rename = "Items")]
-    pub items: Vec<SeriesInfo>,
+    pub items: Vec<SimpleListItem>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -462,6 +458,14 @@ pub struct ServerInfo {
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
+pub struct PublicServerInfo {
+    #[serde(rename = "ServerName")]
+    pub server_name: String,
+    #[serde(rename = "Version")]
+    pub version: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ActivityLog {
     #[serde(rename = "Name")]
     pub name: String,
@@ -499,7 +503,7 @@ pub struct ActivityLogs {
     pub item: Vec<ActivityLog>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Builder)]
 pub struct Back {
     pub id: String,
     pub playsessionid: Option<String>,
@@ -521,17 +525,41 @@ pub struct User {
     pub id: String,
 }
 
-use crate::ui::widgets::singlelist::SingleListPage;
-use crate::ui::widgets::window::Window;
+use crate::ui::widgets::{single_grid::SingleGrid, window::Window};
 use adw::prelude::*;
 use gtk::glib;
+
+use super::client::EMBY_CLIENT;
 
 impl SGTitem {
     pub fn activate<T>(&self, widget: &T, list_type: String)
     where
         T: gtk::prelude::WidgetExt + glib::clone::Downgrade,
     {
-        let page = SingleListPage::new(self.id.to_string(), "".to_string(), &list_type, None, true);
+        let page = SingleGrid::new();
+        let id = self.id.to_string();
+        let list_type_clone = list_type.clone();
+        page.connect_sort_changed_tokio(false, move |sort_by, sort_order| {
+            let id = id.clone();
+            let list_type_clone = list_type_clone.clone();
+            async move {
+                EMBY_CLIENT
+                    .get_inlist(None, 0, &list_type_clone, &id, &sort_order, &sort_by)
+                    .await
+            }
+        });
+        let id = self.id.to_string();
+        let list_type = list_type.clone();
+        page.connect_end_edge_overshot_tokio(false, move |sort_by, sort_order, n_items| {
+            let id = id.clone();
+            let list_type = list_type.clone();
+            async move {
+                EMBY_CLIENT
+                    .get_inlist(None, n_items, &list_type, &id, &sort_order, &sort_by)
+                    .await
+            }
+        });
+        page.emit_by_name::<()>("sort-changed", &[]);
         push_page_with_tag(widget, page, self.name.clone());
     }
 }

@@ -10,7 +10,6 @@ mod imp {
 
     use crate::{
         client::client::EMBY_CLIENT,
-        config::load_env,
         ui::{models::SETTINGS, provider::account_item::AccountItem, widgets::window::Window},
     };
 
@@ -20,7 +19,6 @@ mod imp {
     #[template(resource = "/moe/tsukimi/server_row.ui")]
     #[properties(wrapper_type = super::ServerRow)]
     pub struct ServerRow {
-        /// The room represented by this row.
         #[property(get, set, construct_only)]
         pub item: OnceCell<AccountItem>,
         #[template_child]
@@ -56,9 +54,8 @@ mod imp {
     impl ListBoxRowImpl for ServerRow {
         fn activate(&self) {
             let account = self.obj().item().account();
-            load_env(&account);
             SETTINGS.set_preferred_server(&account.servername).unwrap();
-            EMBY_CLIENT.init(&account);
+            let _ = EMBY_CLIENT.init(&account);
             let window = self.obj().root().and_downcast::<Window>().unwrap();
             window.reset();
         }
@@ -66,7 +63,6 @@ mod imp {
 }
 
 glib::wrapper! {
-    /// A sidebar row representing a room.
     pub struct ServerRow(ObjectSubclass<imp::ServerRow>)
         @extends gtk::Widget, gtk::ListBoxRow, @implements gtk::Accessible;
 }
@@ -74,7 +70,7 @@ glib::wrapper! {
 impl ServerRow {
     pub fn new(account: Account) -> Self {
         glib::Object::builder()
-            .property("item", &AccountItem::from_simple(&account))
+            .property("item", AccountItem::from_simple(&account))
             .build()
     }
 }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template parent="AdwNavigationPage" class="HomePage">
-    <property name="title" translatable="yes">Tsukimi</property>
+    <property name="title" >Tsukimi</property>
     <child>
       <object class="AdwToolbarView">
         <child>
@@ -14,39 +14,6 @@
                     <property name="orientation">vertical</property>
                     <property name="valign">start</property>
                     <property name="spacing">15</property>
-                    <child>
-                      <object class="GtkOverlay" id="carouseloverlay">
-                        <property name="halign">fill</property>
-                        <property name="height-request">400</property>
-                        <property name="valign">start</property>
-                        <property name="visible">True</property>
-                        <child>
-                          <object class="AdwCarousel" id="carousel">
-                            <property name="halign">fill</property>
-                            <property name="valign">start</property>
-                            <property name="hexpand">true</property>
-                            <property name="spacing">20</property>
-                            <child>
-                              <object class="GtkGestureClick">
-                                <signal name="released" handler="carousel_pressed_cb" swapped="true" />
-                              </object>
-                            </child>
-                          </object>
-                        </child>
-                        <child type="overlay">
-                          <object class="AdwCarouselIndicatorDots">
-                            <property name="halign">center</property>
-                            <property name="valign">end</property>
-                            <property name="hexpand">true</property>
-                            <property name="vexpand">false</property>
-                            <property name="carousel">carousel</property>
-                          </object>
-                        </child>
-                        <style>
-                          <class name="home-carousel"/>
-                        </style>
-                      </object>
-                    </child>
                     <child>
                       <object class="HortuScrolled" id="libhortu">
                       </object>

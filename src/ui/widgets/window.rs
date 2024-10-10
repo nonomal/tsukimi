@@ -1,12 +1,12 @@
-use std::env;
 use std::path::PathBuf;
 
 use adw::prelude::*;
 use gio::Settings;
 use gtk::subclass::prelude::*;
+use gtk::ListBoxRow;
 use gtk::Widget;
 mod imp {
-    use std::cell::OnceCell;
+    use std::cell::{OnceCell, RefCell};
 
     use adw::subclass::application_window::AdwApplicationWindowImpl;
     use glib::subclass::InitializingObject;
@@ -15,15 +15,20 @@ mod imp {
     use gtk::subclass::prelude::*;
     use gtk::{glib, CompositeTemplate};
 
-    use crate::ui::clapper::page::ClapperPage;
+    use crate::ui::mpv::control_sidebar::MPVControlSidebar;
+    use crate::ui::mpv::page::MPVPage;
+    use crate::ui::provider::tu_object::TuObject;
     use crate::ui::widgets::content_viewer::MediaContentViewer;
     use crate::ui::widgets::home::HomePage;
     use crate::ui::widgets::image_dialog::ImagesDialog;
     use crate::ui::widgets::item_actionbox::ItemActionsBox;
     use crate::ui::widgets::liked::LikedPage;
+    use crate::ui::widgets::listexpand_row::ListExpandRow;
     use crate::ui::widgets::media_viewer::MediaViewer;
     use crate::ui::widgets::player_toolbar::PlayerToolbarBox;
     use crate::ui::widgets::search::SearchPage;
+    use crate::ui::widgets::tu_overview_item::imp::ViewGroup;
+    use crate::ui::widgets::utils::TuItemBuildExt;
 
     // Object holding the state
     #[derive(CompositeTemplate, Default)]
@@ -60,9 +65,9 @@ mod imp {
         #[template_child]
         pub progressbar: TemplateChild<gtk::ProgressBar>,
         #[template_child]
-        pub clapperpage: TemplateChild<gtk::StackPage>,
+        pub mpvpage: TemplateChild<gtk::StackPage>,
         #[template_child]
-        pub clappernav: TemplateChild<ClapperPage>,
+        pub mpvnav: TemplateChild<MPVPage>,
         #[template_child]
         pub serverselectlist: TemplateChild<gtk::ListBox>,
         #[template_child]
@@ -79,9 +84,27 @@ mod imp {
         pub likedpage: TemplateChild<adw::Bin>,
         #[template_child]
         pub searchpage: TemplateChild<adw::Bin>,
+        #[template_child]
+        pub mpv_playlist: TemplateChild<gtk::ListView>,
+        #[template_child]
+        pub mpv_control_sidebar: TemplateChild<MPVControlSidebar>,
+
+        #[template_child]
+        pub mpv_view: TemplateChild<adw::OverlaySplitView>,
+        #[template_child]
+        pub mpv_view_stack: TemplateChild<adw::ViewStack>,
+
+        #[template_child]
+        pub avatar: TemplateChild<adw::Avatar>,
 
         pub progress_bar_animation: OnceCell<adw::TimedAnimation>,
         pub progress_bar_fade_animation: OnceCell<adw::TimedAnimation>,
+
+        pub last_content_list_selection: RefCell<Option<i32>>,
+
+        pub mpv_playlist_selection: gtk::SingleSelection,
+
+        pub suspend_cookie: RefCell<Option<u32>>,
     }
 
     // The central trait for subclassing a GObject
@@ -94,7 +117,6 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             PlayerToolbarBox::ensure_type();
-            ClapperPage::ensure_type();
             ItemActionsBox::ensure_type();
             MediaContentViewer::ensure_type();
             MediaViewer::ensure_type();
@@ -102,6 +124,9 @@ mod imp {
             HomePage::ensure_type();
             SearchPage::ensure_type();
             LikedPage::ensure_type();
+            MPVPage::ensure_type();
+            ListExpandRow::ensure_type();
+            MPVControlSidebar::ensure_type();
             klass.bind_template();
             klass.bind_template_instance_callbacks();
             klass.install_action("win.relogin", None, move |window, _action, _parameter| {
@@ -124,6 +149,12 @@ mod imp {
                     obj.fullscreen();
                 }
             });
+            klass.install_action("win.search", None, |obj, _, _| {
+                obj.searchpage();
+            });
+            klass.install_action("win.add-server", None, |obj, _, _| {
+                obj.new_account();
+            });
         }
 
         fn instance_init(obj: &InitializingObject<Self>) {
@@ -136,8 +167,18 @@ mod imp {
         fn constructed(&self) {
             // Call "constructed" on parent
             self.parent_constructed();
+
+            let store = gtk::gio::ListStore::new::<TuObject>();
+            self.mpv_playlist_selection.set_model(Some(&store));
+            self.mpv_playlist
+                .set_model(Some(&self.mpv_playlist_selection));
+            self.mpv_playlist.set_factory(Some(
+                gtk::SignalListItemFactory::new().tu_overview_item(ViewGroup::EpisodesView),
+            ));
+            self.mpv_control_sidebar
+                .set_player(Some(&self.mpvnav.imp().video.get()));
+
             let obj = self.obj();
-            self.clappernav.bind_fullscreen(&obj);
             obj.set_fonts();
             if crate::ui::models::SETTINGS.font_size() != -1 {
                 let settings = gtk::Settings::default().unwrap();
@@ -151,27 +192,7 @@ mod imp {
             obj.load_window_size();
             obj.set_servers();
             obj.set_nav_servers();
-            self.selectlist.connect_row_selected(glib::clone!(
-                #[weak]
-                obj,
-                move |_, row| {
-                    if let Some(row) = row {
-                        let num = row.index();
-                        match num {
-                            0 => {
-                                obj.homepage();
-                            }
-                            1 => {
-                                obj.likedpage();
-                            }
-                            2 => {
-                                obj.searchpage();
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            ));
+            obj.set_shortcuts();
         }
     }
 
@@ -198,26 +219,34 @@ mod imp {
 
 use crate::client::client::EMBY_CLIENT;
 use crate::client::structs::Back;
-use crate::config::load_cfgv2;
 use crate::config::Account;
+use crate::toast;
 use crate::ui::models::SETTINGS;
 use crate::ui::provider::core_song::CoreSong;
+use crate::ui::provider::tu_item::TuItem;
+use crate::ui::provider::tu_object::TuObject;
 use crate::ui::provider::IS_ADMIN;
 use crate::utils::spawn;
+use crate::utils::spawn_tokio;
 use crate::APP_ID;
 use glib::Object;
 use gtk::{gio, glib, template_callbacks};
 
 use super::home::HomePage;
+use super::item::ItemPage;
 use super::liked::LikedPage;
 use super::search::SearchPage;
+use super::server_action_row;
 use super::server_panel::ServerPanel;
 use super::server_row::ServerRow;
 use super::tu_list_item::PROGRESSBAR_ANIMATION_DURATION;
 
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Power::{SetThreadExecutionState, EXECUTION_STATE};
+
 glib::wrapper! {
     pub struct Window(ObjectSubclass<imp::Window>)
-        @extends adw::ApplicationWindow, gtk::Window, gtk::Widget, gtk::HeaderBar,
+        @extends adw::ApplicationWindow, gtk::ApplicationWindow, gtk::Window, gtk::Widget, gtk::HeaderBar,
         @implements gio::ActionGroup, gio::ActionMap, gtk::Accessible, gtk::Buildable,
                     gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
@@ -235,6 +264,7 @@ impl Window {
         imp.mainview.pop_to_tag("mainpage");
         imp.insidestack.set_visible_child_name("homepage");
         imp.popbutton.set_visible(false);
+        imp.last_content_list_selection.replace(Some(0));
     }
 
     pub fn likedpage(&self) {
@@ -246,6 +276,7 @@ impl Window {
         imp.mainview.pop_to_tag("mainpage");
         imp.insidestack.set_visible_child_name("likedpage");
         imp.popbutton.set_visible(false);
+        imp.last_content_list_selection.replace(Some(1));
     }
 
     pub fn searchpage(&self) {
@@ -257,6 +288,7 @@ impl Window {
         imp.mainview.pop_to_tag("mainpage");
         imp.insidestack.set_visible_child_name("searchpage");
         imp.popbutton.set_visible(false);
+        imp.last_content_list_selection.replace(Some(2));
     }
 
     #[template_callback]
@@ -281,46 +313,100 @@ impl Window {
         let imp = self.imp();
         let listbox = imp.serversbox.get();
         listbox.remove_all();
-        let accounts = load_cfgv2().unwrap();
-        for account in &accounts.accounts {
+        let accounts = SETTINGS.accounts();
+        for account in &accounts {
             if SETTINGS.auto_select_server()
                 && account.servername == SETTINGS.preferred_server()
-                && env::var("EMBY_NAME").is_err()
+                && EMBY_CLIENT.user_id.lock().unwrap().is_empty()
             {
-                EMBY_CLIENT.init(account);
+                let _ = EMBY_CLIENT.init(account);
                 self.reset();
             }
         }
-        if accounts.accounts.is_empty() {
+        if accounts.is_empty() {
             imp.login_stack.set_visible_child_name("no-server");
             return;
         } else {
             imp.login_stack.set_visible_child_name("servers");
         }
-        for account in accounts.accounts {
-            listbox.append(&self.set_server_rows(account));
-        }
-        listbox.connect_row_activated(glib::clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, row| {
-                unsafe {
-                    let account_ptr: std::ptr::NonNull<Account> = row.data("account").unwrap();
-                    let account: &Account = &*account_ptr.as_ptr();
-                    EMBY_CLIENT.init(account);
-                    SETTINGS.set_preferred_server(&account.servername).unwrap();
+        for (index, account) in accounts.iter().enumerate() {
+            let server_action_row = server_action_row::ServerActionRow::new(account.clone());
+
+            let drag_source = gtk::DragSource::builder()
+                .name("descriptor-drag-format")
+                .actions(gtk::gdk::DragAction::MOVE)
+                .build();
+
+            drag_source.connect_prepare(glib::clone!(
+                #[weak(rename_to = widget)]
+                server_action_row,
+                #[weak]
+                listbox,
+                #[strong]
+                account,
+                #[upgrade_or]
+                None,
+                move |drag_context, _x, _y| {
+                    listbox.drag_highlight_row(&widget);
+                    let icon = gtk::WidgetPaintable::new(Some(&widget));
+                    drag_context.set_icon(Some(&icon), 0, 0);
+                    let object = glib::BoxedAnyObject::new(account.clone());
+                    Some(gtk::gdk::ContentProvider::for_value(&object.to_value()))
                 }
-                obj.reset();
-            }
-        ));
+            ));
+
+            let drop_target = gtk::DropTarget::builder()
+                .name("descriptor-drag-format")
+                .propagation_phase(gtk::PropagationPhase::Capture)
+                .actions(gtk::gdk::DragAction::MOVE)
+                .build();
+
+            drop_target.set_types(&[glib::BoxedAnyObject::static_type()]);
+
+            drop_target.connect_drop(glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                #[strong]
+                account,
+                #[upgrade_or]
+                false,
+                move |_drop_target, value, _y, _data| {
+                    let lr_account = value
+                        .get::<glib::BoxedAnyObject>()
+                        .expect("Failed to get descriptor from drop data");
+                    let lr_account: std::cell::Ref<Account> = lr_account.borrow();
+
+                    if account == *lr_account {
+                        return false;
+                    }
+
+                    let mut accounts = SETTINGS.accounts();
+                    let lr_index = accounts.iter().position(|d| *d == *lr_account).unwrap();
+                    accounts.remove(lr_index);
+                    accounts.insert(index, lr_account.clone());
+                    SETTINGS
+                        .set_accounts(accounts)
+                        .expect("Failed to set accounts");
+                    obj.set_servers();
+                    obj.set_nav_servers();
+
+                    true
+                }
+            ));
+
+            server_action_row.add_controller(drag_source);
+            server_action_row.add_controller(drop_target);
+
+            listbox.append(&server_action_row);
+        }
     }
 
     pub fn set_nav_servers(&self) {
         let imp = self.imp();
         let listbox = imp.serverselectlist.get();
         listbox.remove_all();
-        let accounts = load_cfgv2().unwrap();
-        for account in accounts.accounts {
+        let accounts = SETTINGS.accounts();
+        for account in accounts {
             listbox.append(&ServerRow::new(account));
         }
     }
@@ -336,6 +422,32 @@ impl Window {
         self.account_setup();
         self.remove_all();
         self.homepage();
+
+        spawn(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                let avatar =
+                    match spawn_tokio(async move { EMBY_CLIENT.get_user_avatar().await }).await {
+                        Ok(avatar) => avatar,
+                        Err(e) => {
+                            toast!(obj, e.to_string());
+                            return;
+                        }
+                    };
+
+                let Some(texture) =
+                    gtk::gdk::Texture::from_file(&gio::File::for_path(avatar)).ok()
+                else {
+                    obj.imp()
+                        .avatar
+                        .set_custom_image(None::<&gtk::gdk::Paintable>);
+                    return;
+                };
+
+                obj.imp().avatar.set_custom_image(Some(&texture));
+            }
+        ));
     }
 
     pub fn hard_set_fraction(&self, to_value: f64) {
@@ -344,49 +456,24 @@ impl Window {
         progressbar.set_fraction(to_value);
     }
 
-    pub fn set_server_rows(&self, account: Account) -> adw::ActionRow {
-        let account_clone = account.clone();
-        let row = adw::ActionRow::builder()
-            .title(&account.servername)
-            .subtitle(&account.username)
-            .height_request(80)
-            .activatable(true)
-            .build();
-        unsafe {
-            row.set_data("account", account);
-        }
-        row.add_suffix(&{
-            let button = gtk::Button::builder()
-                .icon_name("user-trash-symbolic")
-                .valign(gtk::Align::Center)
-                .build();
-            button.add_css_class("flat");
-            button.connect_clicked(glib::clone!(
-                #[weak(rename_to = obj)]
-                self,
-                move |_| {
-                    crate::config::remove(&account_clone).unwrap();
-                    obj.set_servers();
-                    obj.set_nav_servers();
-                }
-            ));
-            button
-        });
-        row.add_css_class("serverrow");
-        row
-    }
-
     pub fn account_setup(&self) {
         let imp = self.imp();
+        imp.namerow.set_title(&match EMBY_CLIENT.user_name.lock() {
+            Ok(guard) => guard.to_string(),
+            Err(_) => "Not logged in".to_string(),
+        });
         imp.namerow
-            .set_title(&env::var("EMBY_USERNAME").unwrap_or_else(|_| "Username".to_string()));
-        imp.namerow
-            .set_subtitle(&env::var("EMBY_NAME").unwrap_or_else(|_| "Server".to_string()));
+            .set_subtitle(&match EMBY_CLIENT.server_name.lock() {
+                Ok(guard) => guard.to_string(),
+                Err(_) => "No server selected".to_string(),
+            });
     }
 
     pub fn account_settings(&self) {
-        let dialog = crate::ui::widgets::account_settings::AccountSettings::new();
-        dialog.present(Some(self));
+        let window = crate::ui::widgets::account_settings::AccountSettings::new();
+        window.set_transient_for(Some(self));
+        window.set_application(Some(&self.application().unwrap()));
+        window.present();
     }
 
     pub fn change_pop_visibility(&self) {
@@ -473,15 +560,6 @@ impl Window {
     pub fn overlay_sidebar(&self, overlay: bool) {
         let imp = self.imp();
         imp.split_view.set_collapsed(overlay);
-    }
-
-    pub fn toast(&self, message: &str) {
-        let imp = self.imp();
-        let toast = adw::Toast::builder()
-            .title(message.to_string())
-            .timeout(3)
-            .build();
-        imp.toast.add_toast(toast);
     }
 
     pub fn add_toast(&self, toast: adw::Toast) {
@@ -634,19 +712,6 @@ impl Window {
         }
     }
 
-    pub fn set_clapperpage(
-        &self,
-        url: &str,
-        suburi: Option<&str>,
-        name: Option<&str>,
-        line2: Option<&str>,
-        back: Option<Back>,
-    ) {
-        let imp = self.imp();
-        imp.stack.set_visible_child_name("clapper");
-        imp.clappernav.add_item(url, suburi, name, line2, back);
-    }
-
     pub fn reveal_image(&self, source_widget: &impl IsA<gtk::Widget>) {
         let imp = self.imp();
         imp.media_viewer.reveal(source_widget);
@@ -675,35 +740,26 @@ impl Window {
         &self,
         url: String,
         suburl: Option<String>,
-        name: Option<String>,
+        item: TuItem,
+        episode_list: Vec<TuItem>,
         back: Option<Back>,
-        selected: Option<String>,
+        _selected: Option<String>,
         percentage: f64,
+        matcher: Option<String>,
     ) {
-        if SETTINGS.mpv() {
-            gio::spawn_blocking(move || {
-                match crate::ui::mpv::event::play(
-                    url,
-                    suburl,
-                    Some(name.unwrap_or("".to_string())),
-                    back,
-                    Some(percentage),
-                ) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("Failed to play: {}", e);
-                    }
-                };
-            });
-        } else {
-            self.set_clapperpage(
-                &url,
-                suburl.as_deref(),
-                name.as_deref(),
-                selected.as_deref(),
-                back,
-            );
-        }
+        let imp = self.imp();
+        imp.stack.set_visible_child_name("mpv");
+        self.prevent_suspend();
+        self.set_mpv_playlist(&episode_list);
+        imp.mpvnav.play(
+            &url,
+            suburl.as_deref(),
+            item,
+            episode_list,
+            back,
+            percentage,
+            matcher,
+        );
     }
 
     pub fn push_page<T>(&self, page: &T)
@@ -750,5 +806,172 @@ impl Window {
         let page = ServerPanel::new();
         page.set_tag(Some("Server Panel"));
         self.push_page(&page);
+    }
+
+    fn is_on_mpv_stack(&self) -> bool {
+        self.imp().stack.visible_child_name() == Some("mpv".into())
+    }
+
+    #[template_callback]
+    fn key_pressed_cb(&self, key: u32, _code: u32, state: gtk::gdk::ModifierType) -> bool {
+        if self.is_on_mpv_stack() {
+            self.imp().mpvnav.key_pressed_cb(key, state);
+            if self.imp().mpv_view.shows_sidebar() {
+                return false;
+            }
+            return true;
+        }
+
+        false
+    }
+
+    #[template_callback]
+    fn key_released_cb(&self, key: u32, _code: u32, state: gtk::gdk::ModifierType) {
+        if self.is_on_mpv_stack() {
+            self.imp().mpvnav.key_released_cb(key, state);
+        }
+    }
+
+    #[template_callback]
+    fn on_listboxrow_activated(&self, row: &ListBoxRow) {
+        row.activate();
+    }
+
+    #[template_callback]
+    fn on_contentsrow_selected(&self, row: Option<&ListBoxRow>) {
+        let Some(row) = row else {
+            return;
+        };
+
+        let pos = row.index();
+
+        let last_pos = *self.imp().last_content_list_selection.borrow();
+
+        if last_pos == Some(pos) {
+            self.update_view(pos);
+            return;
+        }
+
+        self.select_view(pos);
+    }
+
+    fn select_view(&self, pos: i32) {
+        match pos {
+            0 => self.homepage(),
+            1 => self.likedpage(),
+            2 => self.searchpage(),
+            _ => {}
+        }
+    }
+
+    fn update_view(&self, pos: i32) {
+        match pos {
+            0 => self.on_home_update(),
+            1 => self.on_liked_update(),
+            _ => {}
+        }
+    }
+
+    pub fn set_shortcuts(&self) {
+        let Some(window) = gtk::Builder::from_resource("/moe/tsukimi/mpv_shortcuts_window.ui")
+            .object::<gtk::ShortcutsWindow>("mpv_shortcuts")
+        else {
+            eprintln!("Failed to load shortcuts window");
+            return;
+        };
+        self.set_help_overlay(Some(&window));
+    }
+
+    pub fn set_mpv_playlist(&self, episode_list: &Vec<TuItem>) {
+        let imp = self.imp();
+        let model = imp.mpv_playlist_selection.model();
+        let Some(store) = model.and_downcast_ref::<gio::ListStore>() else {
+            return;
+        };
+
+        store.remove_all();
+
+        for item in episode_list {
+            let object = TuObject::new(item);
+            store.append(&object);
+        }
+    }
+
+    pub fn view_playlist(&self) {
+        let imp = self.imp();
+        imp.mpv_view.set_show_sidebar(!imp.mpv_view.shows_sidebar());
+        imp.mpv_view_stack.set_visible_child_name("playlist");
+    }
+
+    pub fn view_control_sidebar(&self) {
+        let imp = self.imp();
+        imp.mpv_view.set_show_sidebar(!imp.mpv_view.shows_sidebar());
+        imp.mpv_view_stack.set_visible_child_name("control-bar");
+    }
+
+    #[template_callback]
+    async fn on_playlist_item_activated(&self, position: u32, view: &gtk::ListView) {
+        let Some(model) = view.model() else {
+            return;
+        };
+
+        let Some(item) = model.item(position).and_downcast::<TuObject>() else {
+            return;
+        };
+
+        self.imp().mpvnav.in_play_item(item.item()).await;
+    }
+
+    #[cfg(target_os = "windows")]
+    fn prevent_suspend(&self) {
+        let state = unsafe {
+            SetThreadExecutionState(
+                EXECUTION_STATE(2u32) | EXECUTION_STATE(1u32) | EXECUTION_STATE(2147483648u32),
+            )
+        }; // ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED | ES_CONTINUOUS
+        if state == EXECUTION_STATE(2147483651u32) {
+            println!("System suspend inhibited");
+        } else {
+            eprintln!("Failed to set thread execution state");
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn allow_suspend(&self) {
+        let state = unsafe { SetThreadExecutionState(EXECUTION_STATE(2147483648u32)) }; // ES_CONTINUOUS
+        if state == EXECUTION_STATE(2147483648u32) {
+            println!("System suspend uninhibited");
+        } else {
+            eprintln!("Failed to reset thread execution state");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn prevent_suspend(&self) {
+        let app = self.application().expect("No application found");
+        let cookie = app.inhibit(
+            Some(self),
+            gtk::ApplicationInhibitFlags::IDLE,
+            Some("Playing media"),
+        );
+        self.imp().suspend_cookie.replace(Some(cookie));
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn allow_suspend(&self) {
+        let app = self.application().expect("No application found");
+        if let Some(cookie) = self.imp().suspend_cookie.take() {
+            app.uninhibit(cookie);
+        }
+    }
+
+    pub async fn update_item_page(&self) {
+        let imp = self.imp();
+        let nav = imp.mainview.visible_page();
+        let Some(now_page) = nav.and_downcast_ref::<ItemPage>() else {
+            return;
+        };
+
+        now_page.update_intro().await;
     }
 }

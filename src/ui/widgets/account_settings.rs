@@ -1,17 +1,25 @@
+#![allow(deprecated)]
+
 use crate::{
     client::client::EMBY_CLIENT,
     toast,
-    ui::models::{emby_cache_path, SETTINGS},
-    utils::spawn_tokio,
+    ui::{
+        models::{emby_cache_path, SETTINGS},
+        provider::descriptor::{Descriptor, DescriptorType},
+    },
+    utils::{spawn, spawn_tokio},
 };
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
-use gtk::{gdk::RGBA, gio, glib, template_callbacks, CompositeTemplate};
-
-use super::window::Window;
+use gtk::{
+    gdk::{DragAction, RGBA},
+    gio, glib, template_callbacks, CompositeTemplate,
+};
 
 mod imp {
+    use std::cell::{Cell, RefCell};
+
     use super::*;
     use glib::subclass::InitializingObject;
 
@@ -23,27 +31,13 @@ mod imp {
         #[template_child]
         pub password_second_entry: TemplateChild<adw::PasswordEntryRow>,
         #[template_child]
-        pub backcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
         pub sidebarcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
-        pub autofullscreencontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
-        pub spinrow: TemplateChild<adw::SpinRow>,
         #[template_child]
         pub backgroundspinrow: TemplateChild<adw::SpinRow>,
         #[template_child]
         pub threadspinrow: TemplateChild<adw::SpinRow>,
         #[template_child]
-        pub forcewindowcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
-        pub resumecontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
         pub selectlastcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
-        pub themecontrol: TemplateChild<adw::ComboRow>,
-        #[template_child]
-        pub proxyentry: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub backgroundblurspinrow: TemplateChild<adw::SpinRow>,
         #[template_child]
@@ -55,32 +49,69 @@ mod imp {
         #[template_child]
         pub font: TemplateChild<gtk::FontDialogButton>,
         #[template_child]
-        pub dailyrecommendcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
-        pub mpvcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
-        pub ytdlcontrol: TemplateChild<adw::SwitchRow>,
-        #[template_child]
         pub color: TemplateChild<gtk::ColorDialogButton>,
         #[template_child]
         pub fg_color: TemplateChild<gtk::ColorDialogButton>,
+        #[template_child]
+        pub config_switchrow: TemplateChild<adw::SwitchRow>,
+
+        #[template_child]
+        pub preferred_audio_language_comborow: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub preferred_subtitle_language_comborow: TemplateChild<adw::ComboRow>,
+
+        #[template_child]
+        pub preferred_version_subpage: TemplateChild<adw::NavigationPage>,
+        #[template_child]
+        pub add_version_preferences_dialog: TemplateChild<adw::Dialog>,
+
+        #[template_child]
+        pub descriptor_string_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub descriptor_regex_label: TemplateChild<gtk::Label>,
+
+        #[template_child]
+        pub descriptor_string_label_edit: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub descriptor_regex_label_edit: TemplateChild<gtk::Label>,
+
+        #[template_child]
+        pub descriptor_type_comborow: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub descriptor_entryrow: TemplateChild<adw::EntryRow>,
+
+        #[template_child]
+        pub descriptor_type_comborow_edit: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub descriptor_entryrow_edit: TemplateChild<adw::EntryRow>,
+
+        #[template_child]
+        pub descriptors_listbox: TemplateChild<gtk::ListBox>,
+
+        #[template_child]
+        pub preferred_version_list_stack: TemplateChild<gtk::Stack>,
+
+        #[template_child]
+        pub edit_descriptor_dialog: TemplateChild<adw::Dialog>,
+
+        #[template_child]
+        pub avatar: TemplateChild<adw::Avatar>,
+
+        pub now_editing_descriptor: RefCell<Option<Descriptor>>,
+
+        pub descriptor_grab_x: Cell<f64>,
+        pub descriptor_grab_y: Cell<f64>,
     }
 
     #[glib::object_subclass]
     impl ObjectSubclass for AccountSettings {
         const NAME: &'static str = "AccountSettings";
         type Type = super::AccountSettings;
-        type ParentType = adw::PreferencesDialog;
+        type ParentType = adw::PreferencesWindow;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
             klass.bind_template_instance_callbacks();
-            klass.install_action("win.proxy", None, move |set, _action, _parameter| {
-                set.proxy();
-            });
-            klass.install_action("win.proxyclear", None, move |set, _action, _parameter| {
-                set.proxyclear();
-            });
             klass.install_action("setting.clear", None, move |set, _action, _parameter| {
                 set.cacheclear();
             });
@@ -105,6 +136,20 @@ mod imp {
                     set.clear_font();
                 },
             );
+            klass.install_action(
+                "version.add-prefer",
+                None,
+                move |set, _action, _parameter| {
+                    set.add_preferred_version();
+                },
+            );
+            klass.install_action(
+                "version.edit-prefer",
+                None,
+                move |set, _action, _parameter| {
+                    set.edit_preferred_version();
+                },
+            );
         }
 
         fn instance_init(obj: &InitializingObject<Self>) {
@@ -116,38 +161,29 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
-            obj.set_back();
             obj.set_sidebar();
-            obj.set_spin();
-            obj.set_fullscreen();
-            obj.set_forcewindow();
-            obj.set_resume();
-            obj.set_proxy();
-            obj.set_theme();
-            obj.set_thread();
             obj.set_picopactiy();
             obj.set_pic();
-            obj.set_picblur();
-            obj.change_picblur();
-            obj.set_auto_select_server();
             obj.set_fontsize();
             obj.set_font();
-            obj.set_daily_recommend();
-            obj.set_mpvcontrol();
-            obj.set_ytdlcontrol();
             obj.set_color();
+            obj.bind_settings();
+            obj.refersh_descriptors();
         }
     }
 
     impl WidgetImpl for AccountSettings {}
-    impl AdwDialogImpl for AccountSettings {}
-    impl PreferencesDialogImpl for AccountSettings {}
+    impl WindowImpl for AccountSettings {}
+    impl AdwWindowImpl for AccountSettings {}
+    impl PreferencesWindowImpl for AccountSettings {}
 }
 
 glib::wrapper! {
-    /// Preference Window to display and update room details.
+    /// Preference Window to display preferences.
     pub struct AccountSettings(ObjectSubclass<imp::AccountSettings>)
-        @extends gtk::Widget, adw::Dialog, adw::PreferencesDialog, @implements gtk::Accessible;
+    @extends gtk::ApplicationWindow, gtk::Window, gtk::Widget, adw::PreferencesWindow,
+    @implements gio::ActionGroup, gio::ActionMap, gtk::Accessible, gtk::Buildable,
+        gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
 }
 
 impl Default for AccountSettings {
@@ -197,23 +233,11 @@ impl AccountSettings {
             #[weak(rename_to = obj)]
             self,
             move |control| {
-                let window = obj
-                    .root()
-                    .unwrap()
-                    .downcast::<super::window::Window>()
-                    .unwrap();
+                let window = obj.window();
                 window.overlay_sidebar(control.is_active());
                 SETTINGS.set_overlay(control.is_active()).unwrap();
             }
         ));
-    }
-
-    pub fn set_back(&self) {
-        let imp = self.imp();
-        imp.backcontrol.set_active(SETTINGS.progress());
-        imp.backcontrol.connect_active_notify(move |control| {
-            SETTINGS.set_progress(control.is_active()).unwrap();
-        });
     }
 
     pub fn set_color(&self) {
@@ -235,27 +259,6 @@ impl AccountSettings {
         });
     }
 
-    pub fn set_auto_select_server(&self) {
-        let imp = self.imp();
-        imp.selectlastcontrol
-            .set_active(SETTINGS.auto_select_server());
-        imp.selectlastcontrol.connect_active_notify(move |control| {
-            SETTINGS
-                .set_auto_select_server(control.is_active())
-                .unwrap();
-        });
-    }
-
-    pub fn set_spin(&self) {
-        let imp = self.imp();
-        imp.spinrow.set_value(SETTINGS.background_height().into());
-        imp.spinrow.connect_value_notify(move |control| {
-            SETTINGS
-                .set_background_height(control.value() as i32)
-                .unwrap();
-        });
-    }
-
     pub fn set_fontsize(&self) {
         let imp = self.imp();
         let settings = gtk::Settings::default().unwrap();
@@ -271,48 +274,6 @@ impl AccountSettings {
         });
     }
 
-    pub fn set_fullscreen(&self) {
-        let imp = self.imp();
-        imp.autofullscreencontrol.set_active(SETTINGS.fullscreen());
-        imp.autofullscreencontrol
-            .connect_active_notify(move |control| {
-                SETTINGS.set_fullscreen(control.is_active()).unwrap();
-            });
-    }
-
-    pub fn set_forcewindow(&self) {
-        let imp = self.imp();
-        imp.forcewindowcontrol.set_active(SETTINGS.forcewindow());
-        imp.forcewindowcontrol
-            .connect_active_notify(move |control| {
-                SETTINGS.set_forcewindow(control.is_active()).unwrap();
-            });
-    }
-
-    pub fn set_resume(&self) {
-        let imp = self.imp();
-        imp.resumecontrol.set_active(SETTINGS.resume());
-        imp.resumecontrol.connect_active_notify(move |control| {
-            SETTINGS.set_resume(control.is_active()).unwrap();
-        });
-    }
-
-    pub fn proxy(&self) {
-        let imp = self.imp();
-        SETTINGS.set_proxy(&imp.proxyentry.text()).unwrap();
-    }
-
-    pub fn set_proxy(&self) {
-        let imp = self.imp();
-        imp.proxyentry.set_text(&SETTINGS.proxy());
-    }
-
-    pub fn proxyclear(&self) {
-        let imp = self.imp();
-        SETTINGS.set_proxy("").unwrap();
-        imp.proxyentry.set_text("");
-    }
-
     pub fn cacheclear(&self) {
         let path = emby_cache_path();
         if path.exists() {
@@ -321,49 +282,13 @@ impl AccountSettings {
         toast!(self, gettext("Cache Cleared"))
     }
 
-    pub fn set_theme(&self) {
-        let imp = self.imp();
-        let theme = SETTINGS.theme();
-        let mut pos = 0;
-        match theme.as_str() {
-            "default" => pos = 0,
-            "Adwaita" => pos = 1,
-            "Adwaita Dark" => pos = 2,
-            "Catppuccino Latte" => pos = 3,
-            "Alpha Dark" => pos = 4,
-            "???" => pos = 5,
-            _ => (),
-        }
-        imp.themecontrol.set_selected(pos);
-        imp.themecontrol
-            .connect_selected_item_notify(move |control| {
-                let theme = control
-                    .selected_item()
-                    .and_then(|item| {
-                        item.downcast::<gtk::StringObject>()
-                            .ok()
-                            .map(|item| item.string())
-                    })
-                    .unwrap();
-                SETTINGS.set_theme(&theme).unwrap();
-            });
-    }
-
-    pub fn set_thread(&self) {
-        let imp = self.imp();
-        imp.threadspinrow.set_value(SETTINGS.threads().into());
-        imp.threadspinrow.connect_value_notify(move |control| {
-            SETTINGS.set_threads(control.value() as i32).unwrap();
-        });
-    }
-
     pub async fn set_rootpic(&self) {
         let images_filter = gtk::FileFilter::new();
         images_filter.set_name(Some("Image"));
         images_filter.add_pixbuf_formats();
         let model = gio::ListStore::new::<gtk::FileFilter>();
         model.append(&images_filter);
-        let window = self.root().and_downcast::<Window>().unwrap();
+        let window = self.window();
         let filedialog = gtk::FileDialog::builder()
             .modal(true)
             .title("Select a picture")
@@ -375,7 +300,7 @@ impl AccountSettings {
                 SETTINGS.set_root_pic(&file_path).unwrap();
                 window.set_rootpic(file);
             }
-            Err(_) => window.toast("Failed to set root picture."),
+            Err(_) => toast!(self, gettext("No file selected")),
         };
     }
 
@@ -388,14 +313,19 @@ impl AccountSettings {
             self,
             move |control| {
                 SETTINGS.set_pic_opacity(control.value() as i32).unwrap();
-                let window = obj
-                    .root()
-                    .unwrap()
-                    .downcast::<super::window::Window>()
-                    .unwrap();
+                let window = obj.window();
                 window.set_picopacity(control.value() as i32);
             }
         ));
+    }
+
+    fn window(&self) -> super::window::Window {
+        let windows = self.application().unwrap().windows();
+        let window = windows
+            .into_iter()
+            .find(|w| w.is::<super::window::Window>())
+            .unwrap();
+        window.downcast::<super::window::Window>().unwrap()
     }
 
     pub fn set_pic(&self) {
@@ -410,35 +340,11 @@ impl AccountSettings {
                     .set_background_enabled(control.is_active())
                     .unwrap();
                 if !control.is_active() {
-                    let window = obj
-                        .root()
-                        .unwrap()
-                        .downcast::<super::window::Window>()
-                        .unwrap();
+                    let window = obj.window();
                     window.clear_pic();
                 }
             }
         ));
-    }
-
-    pub fn set_picblur(&self) {
-        let imp = self.imp();
-        imp.backgroundblurcontrol
-            .set_active(SETTINGS.is_blur_enabled());
-        imp.backgroundblurcontrol
-            .connect_active_notify(move |control| {
-                SETTINGS.set_blur_enabled(control.is_active()).unwrap();
-            });
-    }
-
-    pub fn change_picblur(&self) {
-        let imp = self.imp();
-        imp.backgroundblurspinrow
-            .set_value(SETTINGS.pic_blur().into());
-        imp.backgroundblurspinrow
-            .connect_value_notify(move |control| {
-                SETTINGS.set_pic_blur(control.value() as i32).unwrap();
-            });
     }
 
     pub fn clearpic(&self) {
@@ -446,11 +352,7 @@ impl AccountSettings {
             #[weak(rename_to = obj)]
             self,
             async move {
-                let window = obj
-                    .root()
-                    .unwrap()
-                    .downcast::<super::window::Window>()
-                    .unwrap();
+                let window = obj.window();
                 window.clear_pic();
             }
         ));
@@ -477,29 +379,376 @@ impl AccountSettings {
         toast!(self, gettext("Font Cleared, Restart to take effect."));
     }
 
-    pub fn set_daily_recommend(&self) {
+    pub fn bind_settings(&self) {
         let imp = self.imp();
-        imp.dailyrecommendcontrol
-            .set_active(SETTINGS.daily_recommend());
-        imp.dailyrecommendcontrol
-            .connect_active_notify(move |control| {
-                SETTINGS.set_daily_recommend(control.is_active()).unwrap();
-            });
+        SETTINGS
+            .bind("is-blurenabled", &imp.backgroundblurcontrol.get(), "active")
+            .build();
+        SETTINGS
+            .bind("pic-blur", &imp.backgroundblurspinrow.get(), "value")
+            .build();
+        SETTINGS
+            .bind("mpv-config", &imp.config_switchrow.get(), "active")
+            .build();
+        SETTINGS
+            .bind(
+                "mpv-audio-preferred-lang",
+                &imp.preferred_audio_language_comborow.get(),
+                "selected",
+            )
+            .build();
+        SETTINGS
+            .bind(
+                "mpv-subtitle-preferred-lang",
+                &imp.preferred_subtitle_language_comborow.get(),
+                "selected",
+            )
+            .build();
+        SETTINGS
+            .bind(
+                "is-auto-select-server",
+                &imp.selectlastcontrol.get(),
+                "active",
+            )
+            .build();
+        SETTINGS
+            .bind("threads", &imp.threadspinrow.get(), "value")
+            .build();
+
+        let action_group = gio::SimpleActionGroup::new();
+
+        let action_vo = gio::ActionEntry::builder("video-output")
+            .parameter_type(Some(&i32::static_variant_type()))
+            .state(SETTINGS.mpv_video_output().to_variant())
+            .activate(move |_, action, parameter| {
+                let parameter = parameter
+                    .expect("Could not get parameter.")
+                    .get::<i32>()
+                    .expect("The variant needs to be of type `i32`.");
+
+                SETTINGS.set_mpv_video_output(parameter).unwrap();
+
+                action.set_state(&parameter.to_variant());
+            })
+            .build();
+
+        action_group.add_action_entries([action_vo]);
+        self.insert_action_group("setting", Some(&action_group));
+
+        spawn(glib::clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                let avatar =
+                    match spawn_tokio(async move { EMBY_CLIENT.get_user_avatar().await }).await {
+                        Ok(avatar) => avatar,
+                        Err(e) => {
+                            toast!(obj, e.to_string());
+                            return;
+                        }
+                    };
+
+                let Some(texture) =
+                    gtk::gdk::Texture::from_file(&gio::File::for_path(avatar)).ok()
+                else {
+                    return;
+                };
+
+                obj.imp().avatar.set_custom_image(Some(&texture));
+            }
+        ));
     }
 
-    pub fn set_mpvcontrol(&self) {
-        let imp = self.imp();
-        imp.mpvcontrol.set_active(SETTINGS.mpv());
-        imp.mpvcontrol.connect_active_notify(move |control| {
-            SETTINGS.set_mpv(control.is_active()).unwrap();
-        });
+    #[template_callback]
+    fn preferred_subpage_activated_cb(&self) {
+        let subpage = self.imp().preferred_version_subpage.get();
+        self.push_subpage(&subpage);
     }
 
-    pub fn set_ytdlcontrol(&self) {
+    #[template_callback]
+    fn preferred_add_button_cb(&self) {
         let imp = self.imp();
-        imp.ytdlcontrol.set_active(SETTINGS.ytdl());
-        imp.ytdlcontrol.connect_active_notify(move |control| {
-            SETTINGS.set_ytdl(control.is_active()).unwrap();
-        });
+        let dialog = imp.add_version_preferences_dialog.get();
+
+        // Reset the dialog
+        imp.descriptor_entryrow.set_text("");
+
+        dialog.present(Some(self));
+    }
+
+    #[template_callback]
+    pub fn on_mpvsub_font_dialog_button(
+        &self,
+        _param: glib::ParamSpec,
+        button: gtk::FontDialogButton,
+    ) {
+        let font_desc = button.font_desc().unwrap();
+        SETTINGS
+            .set_mpv_subtitle_font(gtk::pango::FontDescription::to_string(&font_desc))
+            .unwrap();
+    }
+
+    #[template_callback]
+    fn on_descriptor_type_changed_comborow(&self, _param: glib::ParamSpec, combo: adw::ComboRow) {
+        match combo.selected() {
+            0 => {
+                self.imp().descriptor_string_label.set_visible(true);
+                self.imp().descriptor_regex_label.set_visible(false);
+            }
+            1 => {
+                self.imp().descriptor_string_label.set_visible(false);
+                self.imp().descriptor_regex_label.set_visible(true);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[template_callback]
+    fn on_descriptor_type_changed_comborow_edit(
+        &self,
+        _param: glib::ParamSpec,
+        combo: adw::ComboRow,
+    ) {
+        match combo.selected() {
+            0 => {
+                self.imp().descriptor_string_label_edit.set_visible(true);
+                self.imp().descriptor_regex_label_edit.set_visible(false);
+            }
+            1 => {
+                self.imp().descriptor_string_label_edit.set_visible(false);
+                self.imp().descriptor_regex_label_edit.set_visible(true);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn add_preferred_version(&self) {
+        let imp = self.imp();
+        let descriptor = match imp.descriptor_type_comborow.selected() {
+            0 => {
+                let descriptor_content = imp.descriptor_entryrow.text();
+                if descriptor_content.is_empty() {
+                    toast!(self, gettext("Descriptor cannot be empty!"));
+                    return;
+                }
+
+                Descriptor::new(descriptor_content.to_string(), DescriptorType::String)
+            }
+            1 => {
+                let descriptor_content = imp.descriptor_entryrow.text();
+                if descriptor_content.is_empty() {
+                    toast!(self, gettext("Descriptor cannot be empty!"));
+                    return;
+                }
+                match regex::Regex::new(&descriptor_content) {
+                    Ok(_) => {}
+                    Err(e) => toast!(self, &format!("{}: {}", gettext("Invalid regex"), e)),
+                }
+
+                Descriptor::new(descriptor_content.to_string(), DescriptorType::Regex)
+            }
+            _ => unreachable!(),
+        };
+
+        SETTINGS
+            .add_preferred_version_descriptor(descriptor)
+            .expect("Failed to add descriptor");
+        self.refersh_descriptors();
+
+        imp.add_version_preferences_dialog.close();
+    }
+
+    pub fn edit_preferred_version(&self) {
+        let imp = self.imp();
+
+        let old_descriptor = imp
+            .now_editing_descriptor
+            .borrow()
+            .clone()
+            .expect("No descriptor to edit");
+
+        let descriptor = match imp.descriptor_type_comborow_edit.selected() {
+            0 => {
+                let descriptor_content = imp.descriptor_entryrow_edit.text();
+                if descriptor_content.is_empty() {
+                    toast!(self, gettext("Descriptor cannot be empty!"));
+                    return;
+                }
+
+                Descriptor::new(descriptor_content.to_string(), DescriptorType::String)
+            }
+            1 => {
+                let descriptor_content = imp.descriptor_entryrow_edit.text();
+                if descriptor_content.is_empty() {
+                    toast!(self, gettext("Descriptor cannot be empty!"));
+                    return;
+                }
+                match regex::Regex::new(&descriptor_content) {
+                    Ok(_) => {}
+                    Err(e) => toast!(self, &format!("{}: {}", gettext("Invalid regex"), e)),
+                }
+
+                Descriptor::new(descriptor_content.to_string(), DescriptorType::Regex)
+            }
+            _ => unreachable!(),
+        };
+
+        SETTINGS
+            .edit_preferred_version_descriptor(old_descriptor, descriptor)
+            .expect("Failed to edit descriptor");
+        self.refersh_descriptors();
+
+        imp.edit_descriptor_dialog.close();
+    }
+
+    fn refersh_descriptors(&self) {
+        let imp = self.imp();
+        let group = imp.descriptors_listbox.get();
+        let descriptors = SETTINGS.preferred_version_descriptors();
+
+        if descriptors.is_empty() {
+            imp.preferred_version_list_stack
+                .set_visible_child_name("empty");
+            return;
+        } else {
+            imp.preferred_version_list_stack
+                .set_visible_child_name("list");
+        }
+
+        group.remove_all();
+
+        for (index, descriptor) in descriptors.iter().enumerate() {
+            let row = adw::ActionRow::builder()
+                .subtitle(descriptor.type_.to_string())
+                .title(&descriptor.content)
+                .activatable(true)
+                .build();
+
+            let edit_button = gtk::Button::builder()
+                .icon_name("document-edit-symbolic")
+                .valign(gtk::Align::Center)
+                .css_classes(["flat"])
+                .build();
+
+            edit_button.connect_clicked(glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                #[strong]
+                descriptor,
+                move |_| {
+                    let dialog = obj.imp().edit_descriptor_dialog.get();
+                    let imp = obj.imp();
+
+                    imp.descriptor_entryrow_edit.set_text(&descriptor.content);
+                    match descriptor.type_ {
+                        DescriptorType::String => {
+                            imp.descriptor_type_comborow_edit.set_selected(0);
+                        }
+                        DescriptorType::Regex => {
+                            imp.descriptor_type_comborow_edit.set_selected(1);
+                        }
+                    }
+
+                    imp.now_editing_descriptor.replace(Some(descriptor.clone()));
+                    dialog.present(Some(&obj));
+                }
+            ));
+
+            let delete_button = gtk::Button::builder()
+                .icon_name("user-trash-symbolic")
+                .valign(gtk::Align::Center)
+                .css_classes(["flat"])
+                .build();
+
+            delete_button.connect_clicked(glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                #[strong]
+                descriptor,
+                move |_| {
+                    SETTINGS
+                        .remove_preferred_version_descriptor(descriptor.clone())
+                        .expect("Failed to remove descriptor");
+                    obj.refersh_descriptors();
+                }
+            ));
+
+            let prefix_image = gtk::Image::builder()
+                .icon_name("list-drag-handle-symbolic")
+                .build();
+
+            row.add_suffix(&edit_button);
+            row.add_suffix(&delete_button);
+            row.add_prefix(&prefix_image);
+
+            let drag_source = gtk::DragSource::builder()
+                .name("descriptor-drag-format")
+                .actions(DragAction::MOVE)
+                .build();
+
+            drag_source.connect_prepare(glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                #[weak(rename_to = widget)]
+                row,
+                #[strong]
+                descriptor,
+                #[upgrade_or]
+                None,
+                move |drag_context, _x, _y| {
+                    obj.imp().descriptors_listbox.drag_highlight_row(&widget);
+                    let icon = gtk::WidgetPaintable::new(Some(&widget));
+                    drag_context.set_icon(Some(&icon), 0, 0);
+                    let object = glib::BoxedAnyObject::new(descriptor.clone());
+                    Some(gtk::gdk::ContentProvider::for_value(&object.to_value()))
+                }
+            ));
+
+            let drop_target = gtk::DropTarget::builder()
+                .name("descriptor-drag-format")
+                .propagation_phase(gtk::PropagationPhase::Capture)
+                .actions(gtk::gdk::DragAction::MOVE)
+                .build();
+
+            drop_target.set_types(&[glib::BoxedAnyObject::static_type()]);
+
+            drop_target.connect_drop(glib::clone!(
+                #[weak(rename_to = obj)]
+                self,
+                #[strong]
+                descriptor,
+                #[upgrade_or]
+                false,
+                move |_drop_target, value, _y, _data| {
+                    let lr_descriptor = value
+                        .get::<glib::BoxedAnyObject>()
+                        .expect("Failed to get descriptor from drop data");
+                    let lr_descriptor: std::cell::Ref<Descriptor> = lr_descriptor.borrow();
+
+                    if descriptor == *lr_descriptor {
+                        return false;
+                    }
+
+                    let mut descriptors = SETTINGS.preferred_version_descriptors();
+                    let lr_index = descriptors
+                        .iter()
+                        .position(|d| *d == *lr_descriptor)
+                        .unwrap();
+                    descriptors.remove(lr_index);
+                    descriptors.insert(index, lr_descriptor.clone());
+                    SETTINGS
+                        .set_preferred_version_descriptors(descriptors)
+                        .expect("Failed to set descriptors");
+                    obj.refersh_descriptors();
+
+                    true
+                }
+            ));
+
+            row.add_controller(drag_source);
+            row.add_controller(drop_target);
+
+            group.append(&row);
+        }
     }
 }

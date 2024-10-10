@@ -1,4 +1,5 @@
 use crate::client::structs::SimpleListItem;
+use crate::ui::widgets::single_grid::SingleGrid;
 use gettextrs::gettext;
 use glib::DateTime;
 use gtk::glib;
@@ -8,7 +9,6 @@ use std::cell::RefCell;
 
 use crate::client::client::EMBY_CLIENT;
 use crate::client::error::UserFacingError;
-use crate::ui::widgets::singlelist::SingleListPage;
 use crate::ui::widgets::window::Window;
 use crate::utils::spawn_tokio;
 use crate::{
@@ -45,9 +45,9 @@ pub mod imp {
         #[property(get, set)]
         parent_index_number: RefCell<u32>,
         #[property(get, set)]
-        series_name: RefCell<String>,
+        series_name: RefCell<Option<String>>,
         #[property(get, set)]
-        series_id: RefCell<String>,
+        series_id: RefCell<Option<String>>,
         #[property(get, set)]
         played_percentage: RefCell<f64>,
         #[property(get, set)]
@@ -94,9 +94,17 @@ pub mod imp {
         #[property(get, set, nullable)]
         program_end_time: RefCell<Option<DateTime>>,
         #[property(get, set, nullable)]
+        premiere_date: RefCell<Option<DateTime>>,
+        #[property(get, set, nullable)]
         status: RefCell<Option<String>>,
         #[property(get, set, nullable)]
         end_date: RefCell<Option<DateTime>>,
+        #[property(get, set, nullable)]
+        overview: RefCell<Option<String>>,
+        #[property(get, set, nullable)]
+        tagline: RefCell<Option<String>>,
+        #[property(get, set)]
+        playback_position_ticks: RefCell<u64>,
     }
 
     #[glib::derived_properties]
@@ -155,6 +163,9 @@ impl TuItem {
             if let Some(unplayed_item_count) = userdata.unplayed_item_count {
                 tu_item.set_unplayed_item_count(unplayed_item_count);
             }
+            if let Some(playback_position_ticks) = userdata.playback_position_ticks {
+                tu_item.set_playback_position_ticks(playback_position_ticks);
+            }
             tu_item.set_is_favorite(userdata.is_favorite.unwrap_or(false));
         }
         if let Some(poster) = poster {
@@ -201,6 +212,9 @@ impl TuItem {
         if let Some(run_time_ticks) = latest.run_time_ticks {
             tu_item.set_run_time_ticks(run_time_ticks);
         }
+        if let Some(taglines) = &latest.taglines {
+            tu_item.set_tagline(taglines.first().cloned());
+        }
         if let Some(primary_image_item_id) = &latest.primary_image_item_id {
             tu_item.set_primary_image_item_id(Some(primary_image_item_id.clone()));
         }
@@ -222,6 +236,9 @@ impl TuItem {
                 tu_item.set_program_end_time(Some(&chrono_to_glib(end_time)));
             }
         }
+        if let Some(premiere_date) = &latest.premiere_date {
+            tu_item.set_premiere_date(Some(&chrono_to_glib(premiere_date)));
+        }
         if let Some(series_id) = &latest.series_id {
             tu_item.set_series_id(series_id.clone());
         }
@@ -230,6 +247,9 @@ impl TuItem {
         }
         if let Some(end_date) = &latest.end_date {
             tu_item.set_end_date(Some(&chrono_to_glib(end_date)));
+        }
+        if let Some(overview) = &latest.overview {
+            tu_item.set_overview(Some(overview.clone()));
         }
         tu_item
     }
@@ -247,19 +267,19 @@ impl TuItem {
 
         match self.item_type().as_str() {
             "Series" | "Movie" | "Video" => {
-                let page = ItemPage::new(self.id(), self.id(), self.name());
+                let page = ItemPage::new(self);
                 push_page_with_tag(window, page, self.name());
             }
             "Episode" => {
-                let page = ItemPage::new(self.series_id(), self.id(), self.name());
-                push_page_with_tag(window, page, self.series_name());
+                let page = ItemPage::new(self);
+                push_page_with_tag(window, page, self.series_name().unwrap_or_default());
             }
             "MusicAlbum" => {
                 let page = AlbumPage::new(self.clone());
                 push_page_with_tag(window, page, self.name());
             }
             "Actor" | "Director" | "Person" | "Writer" => {
-                let page = ActorPage::new(&self.id());
+                let page = ActorPage::new(self);
                 push_page_with_tag(window, page, self.name());
             }
             "BoxSet" => {
@@ -271,23 +291,38 @@ impl TuItem {
                 push_page_with_tag(window, page, self.name());
             }
             "UserView" => {
-                let page = SingleListPage::new(
-                    self.id(),
-                    self.collection_type().unwrap_or_default(),
-                    "livetv",
-                    None,
-                    false,
-                );
+                let page = ListPage::new(self.id(), "livetv".to_string());
                 push_page_with_tag(window, page, self.name());
             }
             "Tag" | "Genre" => {
-                let page = SingleListPage::new(
-                    self.id(),
-                    "".to_string(),
-                    &self.item_type(),
-                    parentid,
-                    true,
-                );
+                let page = SingleGrid::new();
+                let id = self.id();
+                let parent_id = parentid.clone();
+                let list_type = self.item_type();
+                page.connect_sort_changed_tokio(false, move |sort_by, sort_order| {
+                    let id = id.clone();
+                    let parent_id = parent_id.clone();
+                    let list_type = list_type.clone();
+                    async move {
+                        EMBY_CLIENT
+                            .get_inlist(parent_id, 0, &list_type, &id, &sort_order, &sort_by)
+                            .await
+                    }
+                });
+                let id = self.id();
+                let parent_id = parentid.clone();
+                let list_type = self.item_type();
+                page.connect_end_edge_overshot_tokio(false, move |sort_by, sort_order, n_items| {
+                    let id = id.clone();
+                    let parent_id = parent_id.clone();
+                    let list_type = list_type.clone();
+                    async move {
+                        EMBY_CLIENT
+                            .get_inlist(parent_id, n_items, &list_type, &id, &sort_order, &sort_by)
+                            .await
+                    }
+                });
+                page.emit_by_name::<()>("sort-changed", &[]);
                 push_page_with_tag(window, page, self.name());
             }
             _ => toast!(window, gettext("Not Supported Type")),
@@ -308,7 +343,16 @@ impl TuItem {
                             toast!(window, gettext("No transcoding url found"));
                             return;
                         };
-                        window.play_media(url.to_string(), None, Some(item.name()), None, None, 0.0)
+                        window.play_media(
+                            url.to_string(),
+                            None,
+                            item,
+                            Vec::new(),
+                            None,
+                            None,
+                            0.0,
+                            None,
+                        )
                     }
                     Err(e) => {
                         toast!(window, e.to_user_facing());

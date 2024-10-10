@@ -10,7 +10,7 @@ use gtk::{gio, glib};
 use crate::client::client::EMBY_CLIENT;
 use crate::client::error::UserFacingError;
 use crate::client::structs::*;
-use crate::utils::{get_image_with_cache, req_cache, spawn};
+use crate::utils::{fetch_with_cache, get_image_with_cache, spawn, CachePolicy};
 use crate::{fraction, fraction_reset, toast};
 
 use super::picture_loader::PictureLoader;
@@ -153,9 +153,11 @@ impl BoxSetPage {
         let id = imp.id.get().unwrap().clone();
         let itemoverview = imp.inscription.get();
 
-        let item = match req_cache(&format!("item_{}", &id), async move {
-            EMBY_CLIENT.get_item_info(&id).await
-        })
+        let item = match fetch_with_cache(
+            &format!("item_{}", &id),
+            CachePolicy::ReadCacheAndRefresh,
+            async move { EMBY_CLIENT.get_item_info(&id).await },
+        )
         .await
         {
             Ok(item) => item,
@@ -224,9 +226,11 @@ impl BoxSetPage {
 
         imp.inititemhortu.set_title(&gettext("Items"));
 
-        let results = match req_cache(&format!("boxset_{}", &id), async move {
-            EMBY_CLIENT.get_includedby(&id).await
-        })
+        let results = match fetch_with_cache(
+            &format!("boxset_{}", &id),
+            CachePolicy::ReadCacheAndRefresh,
+            async move { EMBY_CLIENT.get_includedby(&id).await },
+        )
         .await
         {
             Ok(history) => history,

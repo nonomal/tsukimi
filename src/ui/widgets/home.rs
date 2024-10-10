@@ -1,11 +1,9 @@
 use crate::client::client::EMBY_CLIENT;
 use crate::client::error::UserFacingError;
 use crate::client::structs::*;
-use crate::ui::models::SETTINGS;
 use crate::ui::provider::tu_item::TuItem;
-use crate::utils::{get_data_with_cache_else, req_cache, req_cache_single, spawn};
+use crate::utils::{fetch_with_cache, spawn, CachePolicy};
 use crate::{fraction, fraction_reset, toast};
-use chrono::{Datelike, Local};
 use gettextrs::gettext;
 use glib::Object;
 use gtk::subclass::prelude::*;
@@ -13,11 +11,8 @@ use gtk::{gio, glib};
 use gtk::{prelude::*, template_callbacks};
 
 use super::hortu_scrolled::HortuScrolled;
-use super::picture_loader::PictureLoader;
 
 mod imp {
-
-    use std::cell::RefCell;
 
     use glib::subclass::InitializingObject;
     use gtk::prelude::StaticTypeExt;
@@ -26,7 +21,6 @@ mod imp {
 
     use crate::ui::widgets::hortu_scrolled::HortuScrolled;
 
-    use super::SimpleListItem;
     // Object holding the state
     #[derive(CompositeTemplate, Default)]
     #[template(resource = "/moe/tsukimi/home.ui")]
@@ -41,13 +35,7 @@ mod imp {
         pub hishortu: TemplateChild<HortuScrolled>,
         #[template_child]
         pub libhortu: TemplateChild<HortuScrolled>,
-        #[template_child]
-        pub carousel: TemplateChild<adw::Carousel>,
-        pub carouset_items: RefCell<Vec<SimpleListItem>>,
-        #[template_child]
-        pub carouseloverlay: TemplateChild<gtk::Overlay>,
         pub selection: gtk::SingleSelection,
-        pub timeout: RefCell<Option<glib::source::SourceId>>,
     }
 
     // The central trait for subclassing a GObject
@@ -133,38 +121,31 @@ impl HomePage {
 
     pub async fn setup(&self, enable_cache: bool) {
         fraction_reset!(self);
-        self.set_carousel().await;
         self.setup_history(enable_cache).await;
         self.setup_library().await;
         fraction!(self);
     }
 
-    #[template_callback]
-    fn carousel_pressed_cb(&self) {
-        let position = self.imp().carousel.position();
-        if let Some(item) = self.imp().carouset_items.borrow().get(position as usize) {
-            let tu_item = TuItem::from_simple(item, None);
-            tu_item.activate(self, None);
-        }
-    }
-
     pub async fn setup_history(&self, enable_cache: bool) {
         let hortu = self.imp().hishortu.get();
 
-        let results = match req_cache_single(
-            "history",
-            async { EMBY_CLIENT.get_resume().await },
-            enable_cache,
-        )
+        let cache_policy = if enable_cache {
+            CachePolicy::UseCacheIfAvailable
+        } else {
+            CachePolicy::RefreshCache
+        };
+
+        let results = match fetch_with_cache("history", cache_policy, async {
+            EMBY_CLIENT.get_resume().await
+        })
         .await
         {
             Ok(history) => history,
             Err(e) => {
                 toast!(self, e.to_user_facing());
-                None
+                return;
             }
-        }
-        .unwrap_or_default();
+        };
 
         hortu.set_title(&gettext("Continue Watching"));
 
@@ -174,7 +155,11 @@ impl HomePage {
     pub async fn setup_library(&self) {
         let hortu = self.imp().libhortu.get();
 
-        let results = match req_cache("library", async { EMBY_CLIENT.get_library().await }).await {
+        let results = match fetch_with_cache("library", CachePolicy::ReadCacheAndRefresh, async {
+            EMBY_CLIENT.get_library().await
+        })
+        .await
+        {
             Ok(history) => history,
             Err(e) => {
                 toast!(self, e.to_user_facing());
@@ -204,13 +189,17 @@ impl HomePage {
                 continue;
             };
 
-            let results = match req_cache(&format!("library_{}", view.id), async move {
-                if collection_type == "livetv" {
-                    EMBY_CLIENT.get_channels().await.map(|x| x.items)
-                } else {
-                    EMBY_CLIENT.get_latest(&view.id).await
-                }
-            })
+            let results = match fetch_with_cache(
+                &format!("library_{}", view.id),
+                CachePolicy::ReadCacheAndRefresh,
+                async move {
+                    if collection_type == "livetv" {
+                        EMBY_CLIENT.get_channels().await.map(|x| x.items)
+                    } else {
+                        EMBY_CLIENT.get_latest(&view.id).await
+                    }
+                },
+            )
             .await
             {
                 Ok(history) => history,
@@ -243,96 +232,5 @@ impl HomePage {
 
             libsbox.append(&hortu);
         }
-    }
-
-    pub async fn set_carousel(&self) {
-        if !SETTINGS.daily_recommend() {
-            self.imp().carouseloverlay.set_visible(false);
-            return;
-        }
-
-        let carousel = self.imp().carousel.get();
-        for _ in 0..carousel.observe_children().n_items() {
-            carousel.remove(&carousel.last_child().unwrap());
-        }
-        self.imp().carouset_items.borrow_mut().clear();
-
-        let date = Local::now();
-        let formatted_date = format!("{:04}{:02}{:02}", date.year(), date.month(), date.day());
-        let results = match get_data_with_cache_else(formatted_date, "carousel", async {
-            EMBY_CLIENT.get_random().await
-        })
-        .await
-        {
-            Ok(results) => results,
-            Err(e) => {
-                toast!(self, e.to_user_facing());
-                List::default()
-            }
-        };
-
-        for result in results.items {
-            if let Some(image_tags) = &result.image_tags {
-                if let Some(backdrop_image_tags) = &result.backdrop_image_tags {
-                    if image_tags.logo.is_some() && !backdrop_image_tags.is_empty() {
-                        self.imp().carouset_items.borrow_mut().push(result.clone());
-                        self.carousel_add_child(result);
-                    }
-                }
-            }
-        }
-
-        let carousel = self.imp().carousel.get();
-
-        if carousel.n_pages() <= 1 {
-            return;
-        }
-
-        if let Some(timeout) = self.imp().timeout.borrow_mut().take() {
-            glib::source::SourceId::remove(timeout);
-        }
-
-        let handler_id = glib::timeout_add_seconds_local(7, move || {
-            let current_page = carousel.position();
-            let n_pages = carousel.n_pages();
-            let new_page_position = (current_page + 1. + n_pages as f64) % n_pages as f64;
-            carousel.scroll_to(&carousel.nth_page(new_page_position as u32), true);
-
-            glib::ControlFlow::Continue
-        });
-
-        self.imp().timeout.replace(Some(handler_id));
-    }
-
-    pub fn carousel_add_child(&self, item: SimpleListItem) {
-        let imp = self.imp();
-        let id = item.id;
-
-        let image = PictureLoader::new(&id, "Backdrop", Some(0.to_string()));
-        image.set_halign(gtk::Align::Center);
-
-        let overlay = gtk::Overlay::builder()
-            .valign(gtk::Align::Fill)
-            .halign(gtk::Align::Center)
-            .child(&image)
-            .build();
-
-        let logo = super::logo::set_logo(id, "Logo", None);
-        logo.set_halign(gtk::Align::End);
-
-        let logobox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .margin_bottom(10)
-            .margin_end(10)
-            .height_request(150)
-            .valign(gtk::Align::End)
-            .halign(gtk::Align::Fill)
-            .build();
-
-        logobox.append(&logo);
-
-        overlay.add_overlay(&logobox);
-
-        imp.carousel.append(&overlay);
     }
 }

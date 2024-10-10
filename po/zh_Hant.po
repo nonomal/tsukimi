@@ -1,0 +1,1331 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# dyphire <qimoge@gmail.com>, 2024.
+# Gracealina  clover <zhiweishuisheng@gmail.com>, 2024.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-10-09 17:33+0800\n"
+"PO-Revision-Date: 2024-10-08 04:16+0000\n"
+"Last-Translator: Gracealina  clover <zhiweishuisheng@gmail.com>\n"
+"Language-Team: Chinese (Traditional Han script) <https://hosted.weblate.org/"
+"projects/tsukimi/main/zh_Hant/>\n"
+"Language: zh_Hant\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 5.8-dev\n"
+
+#: resources/ui/account_settings.ui:4
+msgid "Settings"
+msgstr "設定"
+
+#: resources/ui/account_settings.ui:12 resources/ui/mpv_shortcuts_window.ui:11
+msgid "General"
+msgstr "常規"
+
+#: resources/ui/account_settings.ui:19 resources/ui/account_settings.ui:476
+msgid "Preferred Video Version"
+msgstr "首選影片版本"
+
+#: resources/ui/account_settings.ui:28
+msgid "Preferred Language"
+msgstr "語言偏好"
+
+#: resources/ui/account_settings.ui:29
+msgid "This is globally effective"
+msgstr "全域有效"
+
+#: resources/ui/account_settings.ui:32
+msgid "Preferred Audio Language"
+msgstr "首選音軌語言"
+
+#: resources/ui/account_settings.ui:41 resources/ui/account_settings.ui:65
+#: resources/ui/account_settings.ui:203
+msgid "Default"
+msgstr "預設"
+
+#: resources/ui/account_settings.ui:56
+msgid "Preferred Subtitle Language"
+msgstr "首選字幕語言"
+
+#: resources/ui/account_settings.ui:82
+msgid "Appearence"
+msgstr "外觀"
+
+#: resources/ui/account_settings.ui:85
+msgid "Font Scale"
+msgstr "字體縮放"
+
+#: resources/ui/account_settings.ui:99
+msgid "Font Family"
+msgstr "字體"
+
+#: resources/ui/account_settings.ui:117 resources/ui/account_settings.ui:128
+#: resources/ui/account_settings.ui:145
+msgid "Restart App To Take Effect"
+msgstr "重啟程式生效"
+
+#: resources/ui/account_settings.ui:127
+msgid "Accent Color"
+msgstr "強調色"
+
+#: resources/ui/account_settings.ui:144
+msgid "Accent Foreground Color"
+msgstr "強調前景色"
+
+#: resources/ui/account_settings.ui:161
+msgid "Hide Sidebar"
+msgstr "隱藏側邊欄"
+
+#: resources/ui/account_settings.ui:166
+msgid "Auto Select Last Server"
+msgstr "自動啟動上次使用的媒體庫"
+
+#: resources/ui/account_settings.ui:173
+msgid "Network"
+msgstr "網絡"
+
+#: resources/ui/account_settings.ui:176
+msgid "Threads"
+msgstr "執行緒"
+
+#: resources/ui/account_settings.ui:177
+msgid "This only effects on getting images"
+msgstr "這僅會影響獲取圖像"
+
+#: resources/ui/account_settings.ui:193 resources/ui/mpv_control_sidebar.ui:372
+msgid "Background"
+msgstr "背景"
+
+#: resources/ui/account_settings.ui:200
+msgid "This feature may cause significant lag. Please enable it with caution."
+msgstr "此功能可能會導致嚴重效能問題，請謹慎使用"
+
+#: resources/ui/account_settings.ui:226
+msgid "Opacity"
+msgstr "不透明度"
+
+#: resources/ui/account_settings.ui:240
+msgid "Blur (Experimental)"
+msgstr "模糊（實驗性）"
+
+#: resources/ui/account_settings.ui:241 resources/ui/account_settings.ui:250
+msgid "Warning: High GPU usage"
+msgstr "警告：GPU 佔用率較高"
+
+#: resources/ui/account_settings.ui:249
+msgid "Blur Radius (Experimental)"
+msgstr "模糊半徑（實驗性）"
+
+#: resources/ui/account_settings.ui:270 resources/ui/mpv_control_sidebar.ui:63
+msgid "Cache"
+msgstr "快取"
+
+#: resources/ui/account_settings.ui:273
+msgid "Clear Cache"
+msgstr "清除快取"
+
+#: resources/ui/account_settings.ui:294
+msgid "Account"
+msgstr "帳戶"
+
+#: resources/ui/account_settings.ui:310
+msgid "New Password"
+msgstr "新密碼"
+
+#: resources/ui/account_settings.ui:315
+msgid "Confirm Password"
+msgstr "確認密碼"
+
+#: resources/ui/account_settings.ui:327
+msgid "Change Password"
+msgstr "修改密碼"
+
+#: resources/ui/account_settings.ui:344
+msgid "Music"
+msgstr "音樂"
+
+#: resources/ui/account_settings.ui:349
+msgid "Player"
+msgstr "播放器"
+
+#: resources/ui/account_settings.ui:352 resources/ui/player_toolbar.ui:197
+msgid "Repeat Mode"
+msgstr "循環模式"
+
+#: resources/ui/account_settings.ui:356 resources/ui/player_toolbar.ui:231
+msgid "Repeat One"
+msgstr "單曲循環"
+
+#: resources/ui/account_settings.ui:357 resources/ui/player_toolbar.ui:235
+msgid "Repeat All"
+msgstr "列表循環"
+
+#: resources/ui/account_settings.ui:358 resources/ui/player_toolbar.ui:239
+msgid "None"
+msgstr "無"
+
+#: resources/ui/account_settings.ui:370 resources/ui/mpv_control_sidebar.ui:489
+msgid "Video"
+msgstr "影片"
+
+#: resources/ui/account_settings.ui:375
+msgid "Video Output"
+msgstr "影片輸出"
+
+#: resources/ui/account_settings.ui:376
+msgid ""
+"Warning: Do NOT use any method other than the software's own controls to "
+"control the window. Restart to take effect"
+msgstr "重啟生效 –「請不要使用調出的外部 mpv 窗口控件」"
+
+#: resources/ui/account_settings.ui:379
+msgid "libmpv (default)"
+msgstr "libmpv（預設）"
+
+#: resources/ui/account_settings.ui:434
+msgid "Load external mpv config"
+msgstr "載入外部 mpv 配置"
+
+#: resources/ui/account_settings.ui:435
+msgid "May cause crashes, Requires restart"
+msgstr "可能會導致崩潰，重啟程式生效"
+
+#: resources/ui/account_settings.ui:439
+msgid "Read from mpv config dir"
+msgstr "從 mpv 配置目錄讀取"
+
+#: resources/ui/account_settings.ui:454
+msgid "Preferred Version"
+msgstr "首選版本"
+
+#: resources/ui/account_settings.ui:477
+msgid ""
+"Weight is ordered from high to low, until a specific version is matched, or "
+"the highest matching version is obtained before clearing the match list"
+msgstr ""
+"權重從高到低排序，直到匹配到特定版本，或者在清除匹配清單之前獲得最高匹配版本"
+
+#: resources/ui/account_settings.ui:492
+msgid "Descriptors"
+msgstr "描述符"
+
+#: resources/ui/account_settings.ui:514
+msgid "It is recommended to set no more than 3 lines"
+msgstr "建議設定不超過 3 行"
+
+#: resources/ui/account_settings.ui:535
+msgid "No Descriptors"
+msgstr "無描述符"
+
+#: resources/ui/account_settings.ui:554
+msgid "Add a descriptor"
+msgstr "添加描述符"
+
+#: resources/ui/account_settings.ui:565 resources/ui/account_settings.ui:675
+#: resources/ui/account.ui:26 resources/ui/images_dialog.ui:26
+#: resources/ui/metadata_dialog.ui:38
+msgid "Cancel"
+msgstr "取消"
+
+#: resources/ui/account_settings.ui:571
+msgid "Add"
+msgstr "添加"
+
+#: resources/ui/account_settings.ui:596 resources/ui/account_settings.ui:706
+msgid "This will use exact matching to obtain a list"
+msgstr "這將使用精確匹配來獲取列表"
+
+#: resources/ui/account_settings.ui:599 resources/ui/account_settings.ui:709
+msgid "Descriptor Type"
+msgstr "描述符類型"
+
+#: resources/ui/account_settings.ui:604 resources/ui/account_settings.ui:714
+msgid "String"
+msgstr "字符串"
+
+#: resources/ui/account_settings.ui:605 resources/ui/account_settings.ui:715
+msgid "Regular Expression"
+msgstr "正則表達式"
+
+#: resources/ui/account_settings.ui:617 resources/ui/account_settings.ui:727
+msgid "Descriptor"
+msgstr "描述符"
+
+#: resources/ui/account_settings.ui:622 resources/ui/account_settings.ui:732
+msgid "Descriptor should not be too long"
+msgstr "描述符不宜太長"
+
+#: resources/ui/account_settings.ui:633 resources/ui/account_settings.ui:743
+msgid "eg. 1080p"
+msgstr "例如 –「1080p」"
+
+#: resources/ui/account_settings.ui:644 resources/ui/account_settings.ui:754
+msgid "eg. 1080p.*WebDL"
+msgstr "例如 –「1080p.*WebDL」"
+
+#: resources/ui/account_settings.ui:664
+msgid "Edit descriptor"
+msgstr "編輯描述符"
+
+#: resources/ui/account_settings.ui:681
+msgid "Save"
+msgstr "保存"
+
+#: resources/ui/account.ui:9 resources/ui/account.ui:17
+msgid "Add a New Server"
+msgstr "添加伺服器"
+
+#: resources/ui/account.ui:32
+msgid "_Add"
+msgstr "添加"
+
+#: resources/ui/account.ui:69
+msgid "Name (Nullable)"
+msgstr "名稱(可為空)"
+
+#: resources/ui/account.ui:74
+msgid "Server Address (Auto parse)"
+msgstr "伺服器地址(自動解析)"
+
+#: resources/ui/account.ui:93
+msgid "Port"
+msgstr "端口"
+
+#: resources/ui/account.ui:100
+msgid "Username"
+msgstr "用戶名"
+
+#: resources/ui/account.ui:105
+msgid "Password (Nullable)"
+msgstr "密碼(可為空)"
+
+#: resources/ui/actor.ui:53 resources/ui/boxset.ui:55
+msgid "Name"
+msgstr "名稱"
+
+#: resources/ui/actor.ui:71 resources/ui/boxset.ui:105
+msgid "No Inscriptions"
+msgstr "暫無內容"
+
+#: resources/ui/album_widget.ui:94 resources/ui/item.ui:157
+#: resources/ui/player_toolbar.ui:90 resources/ui/mpv_menu_actions.ui:27
+#: src/ui/mpv/page.rs:880 src/ui/mpv/page.rs:882 src/ui/widgets/item.rs:504
+msgid "Play"
+msgstr "播放"
+
+#: resources/ui/mpvpage.ui:98 src/ui/mpv/page.rs:885 src/ui/mpv/page.rs:887
+msgid "Pause"
+msgstr "暫停"
+
+#: resources/ui/mpvpage.ui:166 resources/ui/mpvpage.ui:168
+#: resources/ui/media_viewer.ui:58 resources/ui/media_viewer.ui:60
+#: resources/ui/window.ui:12 resources/ui/window.ui:45
+msgid "Fullscreen"
+msgstr "全屏"
+
+#: resources/ui/mpvpage.ui:177 resources/ui/mpvpage.ui:179
+#: resources/ui/media_viewer.ui:69 resources/ui/media_viewer.ui:71
+msgid "Exit Fullscreen"
+msgstr "退出全屏"
+
+#: resources/ui/mpvpage.ui:222
+msgid "Stop and quit"
+msgstr "停止並退出"
+
+#: resources/ui/mpvpage.ui:242 resources/ui/item.ui:96 resources/ui/item.ui:133
+msgid "Loading..."
+msgstr "載入中..."
+
+#: resources/ui/mpvpage.ui:257 resources/ui/window.ui:548
+#: resources/ui/window.ui:570 resources/ui/mpv_menu.ui:35
+msgid "Playlist"
+msgstr "播放列表"
+
+#: resources/ui/mpvpage.ui:269
+msgid "Media info (MPV)"
+msgstr "媒體信息（MPV）"
+
+#: resources/ui/mpvpage.ui:309 resources/ui/window.ui:20
+#: resources/ui/window.ui:49
+msgid "Preferences"
+msgstr "首選項"
+
+#: resources/ui/mpvpage.ui:325
+msgid "Playback speed"
+msgstr "播放速度"
+
+#: resources/ui/mpvpage.ui:339
+msgid "Volume"
+msgstr "音量"
+
+#: resources/ui/mpvpage.ui:352 resources/ui/mpvpage.ui:411
+#: resources/ui/mpv_control_sidebar.ui:441
+msgid "Audio"
+msgstr "音軌"
+
+#: resources/ui/mpvpage.ui:360 resources/ui/mpvpage.ui:379
+#: resources/ui/mpv_control_sidebar.ui:111
+msgid "Subtitle"
+msgstr "字幕"
+
+#: resources/ui/disc_box.ui:9 resources/ui/metadata_dialog.ui:242
+#: src/ui/widgets/disc_box.rs:76
+msgid "Disc"
+msgstr "碟號"
+
+#: resources/ui/images_dialog.ui:8 resources/ui/images_dialog.ui:17
+#: resources/ui/item_actions.ui:59 resources/ui/pop-menu.ui:41
+#: resources/ui/song_widget.ui:155
+msgid "View Images"
+msgstr "查看圖像"
+
+#: resources/ui/images_dialog.ui:32 resources/ui/metadata_dialog.ui:44
+msgid "_Save"
+msgstr "保存"
+
+#: resources/ui/images_dialog.ui:61 resources/ui/metadata_dialog.ui:92
+msgid "Not Available"
+msgstr "不可用"
+
+#: resources/ui/images_dialog.ui:62 resources/ui/metadata_dialog.ui:93
+msgid "This page is READ-ONLY, because you have no permission to modify it."
+msgstr "只讀介面，您無權修改。"
+
+#: resources/ui/images_dialog.ui:71
+msgid "Images"
+msgstr "圖像"
+
+#: resources/ui/images_dialog.ui:129
+msgid "BackDrops"
+msgstr "背景"
+
+#: resources/ui/item_actions.ui:40 resources/ui/pop-menu.ui:23
+msgid "Mark as Played"
+msgstr "標記為已觀看"
+
+#: resources/ui/item_actions.ui:46 resources/ui/pop-menu.ui:29
+msgid "Mark as Unplayed"
+msgstr "標記為未觀看"
+
+#: resources/ui/item_actions.ui:53 resources/ui/metadata_dialog.ui:20
+#: resources/ui/pop-menu.ui:35 resources/ui/song_widget.ui:150
+msgid "View Metadata"
+msgstr "查看元數據"
+
+#: resources/ui/item.ui:191
+msgid "Video: "
+msgstr "影片： "
+
+#: resources/ui/item.ui:211
+msgid "Subtitle: "
+msgstr "字幕： "
+
+#: resources/ui/item.ui:266 src/ui/widgets/home.rs:150
+msgid "Continue Watching"
+msgstr "繼續觀看"
+
+#: resources/ui/item.ui:432
+msgid "MediaInfo"
+msgstr "媒體信息"
+
+#: resources/ui/media_viewer.ui:6
+msgid "_Copy Image"
+msgstr "複製圖像"
+
+#: resources/ui/media_viewer.ui:36 resources/ui/media_viewer.ui:38
+msgid "Back"
+msgstr "返回"
+
+#: resources/ui/media_viewer.ui:46 resources/ui/media_viewer.ui:48
+msgid "Media Menu"
+msgstr "媒體菜單"
+
+#: resources/ui/metadata_dialog.ui:29
+msgid "View Metadata (Read Only)"
+msgstr "查看元數據（只讀）"
+
+#: resources/ui/metadata_dialog.ui:102
+msgid "Path"
+msgstr "路徑"
+
+#: resources/ui/metadata_dialog.ui:103
+msgid "No data."
+msgstr "暫無數據"
+
+#: resources/ui/metadata_dialog.ui:111 resources/ui/singlelist.ui:90
+#: resources/ui/single_grid.ui:111
+msgid "Title"
+msgstr "標題"
+
+#: resources/ui/metadata_dialog.ui:116
+msgid "Sort Title"
+msgstr "排序標題"
+
+#: resources/ui/metadata_dialog.ui:121 resources/ui/singlelist.ui:92
+#: resources/ui/single_grid.ui:113
+msgid "Date Created"
+msgstr "創建時間"
+
+#: resources/ui/metadata_dialog.ui:127
+msgid "Pick Date"
+msgstr "選擇日期"
+
+#: resources/ui/metadata_dialog.ui:147
+msgid "Pick Time"
+msgstr "選擇時間"
+
+#: resources/ui/metadata_dialog.ui:200
+msgid "Overview"
+msgstr "概覽"
+
+#: resources/ui/metadata_dialog.ui:227
+msgid "Artists"
+msgstr "藝術家"
+
+#: resources/ui/metadata_dialog.ui:232
+msgid "Album Artists"
+msgstr "專輯藝術家"
+
+#: resources/ui/metadata_dialog.ui:237
+msgid "Album"
+msgstr "專輯"
+
+#: resources/ui/metadata_dialog.ui:247
+msgid "Track Number"
+msgstr "音軌號"
+
+#: resources/ui/metadata_dialog.ui:260
+msgid "TheMovieDb Id"
+msgstr "TMDb Id"
+
+#: resources/ui/metadata_dialog.ui:265
+msgid "TheTVDb Id"
+msgstr "TVDb Id"
+
+#: resources/ui/metadata_dialog.ui:270
+msgid "IMDb Id"
+msgstr "IMDb Id"
+
+#: resources/ui/metadata_dialog.ui:278
+msgid "Lock The Item"
+msgstr "鎖定此專案"
+
+#: resources/ui/mpv_control_sidebar.ui:5 resources/ui/window.ui:598
+msgid "Advanced Settings"
+msgstr "高級設定"
+
+#: resources/ui/mpv_control_sidebar.ui:18
+msgid "Seek Action"
+msgstr ""
+
+#: resources/ui/mpv_control_sidebar.ui:21
+msgid "Seek Backward"
+msgstr "快退"
+
+#: resources/ui/mpv_control_sidebar.ui:22
+#: resources/ui/mpv_control_sidebar.ui:42
+#: resources/ui/mpv_control_sidebar.ui:94
+msgid "Unit: Seconds"
+msgstr "單位：秒"
+
+#: resources/ui/mpv_control_sidebar.ui:41
+msgid "Seek Forward"
+msgstr "快進"
+
+#: resources/ui/mpv_control_sidebar.ui:72
+msgid "Show Buffer Speed"
+msgstr "顯示緩衝速度"
+
+#: resources/ui/mpv_control_sidebar.ui:77
+msgid "Cache Size"
+msgstr "快取大小"
+
+#: resources/ui/mpv_control_sidebar.ui:78
+msgid "Unit: MB"
+msgstr "單位：MB"
+
+#: resources/ui/mpv_control_sidebar.ui:93
+msgid "Cache Time"
+msgstr "緩衝時間"
+
+#: resources/ui/mpv_control_sidebar.ui:114
+#, fuzzy
+#| msgid "Subtitle: "
+msgid "Subtitle Composing"
+msgstr "字幕： "
+
+#: resources/ui/mpv_control_sidebar.ui:186
+#, fuzzy
+#| msgid "No Inscriptions"
+msgid "Position"
+msgstr "暫無內容"
+
+#: resources/ui/mpv_control_sidebar.ui:206
+msgid "Subtitle Text Size"
+msgstr "字幕字體大小"
+
+#: resources/ui/mpv_control_sidebar.ui:207
+msgid "This option only takes effect for srt subtitles"
+msgstr "此選項僅對 SRT 字幕生效"
+
+#: resources/ui/mpv_control_sidebar.ui:227
+#, fuzzy
+#| msgid "Subtitle Text Size"
+msgid "Subtitle Text Scale"
+msgstr "字幕字體大小"
+
+#: resources/ui/mpv_control_sidebar.ui:228
+msgid "This affects ASS subtitles as well"
+msgstr ""
+
+#: resources/ui/mpv_control_sidebar.ui:249
+msgid "Subtitle Text Font"
+msgstr "字幕字體"
+
+#: resources/ui/mpv_control_sidebar.ui:251
+msgid ""
+"Specify font to use for subtitles that do not themselves specify a "
+"particular font"
+msgstr "設定本身未指定特定字體的字幕的字體"
+
+#: resources/ui/mpv_control_sidebar.ui:276
+msgid "Border Style"
+msgstr "邊框樣式"
+
+#: resources/ui/mpv_control_sidebar.ui:281
+msgid "Outline and shadow"
+msgstr "輪廓和陰影"
+
+#: resources/ui/mpv_control_sidebar.ui:282
+msgid "Opaque box"
+msgstr "不透明框"
+
+#: resources/ui/mpv_control_sidebar.ui:283
+msgid "Background box"
+msgstr "背景框"
+
+#: resources/ui/mpv_control_sidebar.ui:291
+msgid "Border Size"
+msgstr "邊框尺寸"
+
+#: resources/ui/mpv_control_sidebar.ui:306
+msgid "Shadow Offset"
+msgstr "陰影偏移"
+
+#: resources/ui/mpv_control_sidebar.ui:323
+#, fuzzy
+#| msgid "Subtitle: "
+msgid "Subtitle Color"
+msgstr "字幕： "
+
+#: resources/ui/mpv_control_sidebar.ui:336
+msgid "Text"
+msgstr ""
+
+#: resources/ui/mpv_control_sidebar.ui:354
+#, fuzzy
+#| msgid "Border Size"
+msgid "Border"
+msgstr "邊框尺寸"
+
+#: resources/ui/mpv_control_sidebar.ui:392
+#, fuzzy
+#| msgid "Subtitle: "
+msgid "Subtitle Offset"
+msgstr "字幕： "
+
+#: resources/ui/mpv_control_sidebar.ui:405
+msgid "Offset"
+msgstr "偏移"
+
+#: resources/ui/mpv_control_sidebar.ui:406
+#: resources/ui/mpv_control_sidebar.ui:455
+msgid "Unit: ms"
+msgstr "單位：ms"
+
+#: resources/ui/mpv_control_sidebar.ui:421
+msgid "Speed"
+msgstr "速度"
+
+#: resources/ui/mpv_control_sidebar.ui:454
+msgid "Audio Offset"
+msgstr "音频偏移"
+
+#: resources/ui/mpv_control_sidebar.ui:470
+msgid "Audio Channel"
+msgstr "音頻聲道"
+
+#: resources/ui/mpv_control_sidebar.ui:475
+msgid "Auto"
+msgstr "自動"
+
+#: resources/ui/mpv_control_sidebar.ui:476
+msgid "Auto (Safety)"
+msgstr "自動(安全)"
+
+#: resources/ui/mpv_control_sidebar.ui:477
+msgid "Mono"
+msgstr "單聲道"
+
+#: resources/ui/mpv_control_sidebar.ui:478
+msgid "Dual Channel"
+msgstr "雙聲道"
+
+#: resources/ui/mpv_control_sidebar.ui:479
+msgid "Dual Channel (Invert)"
+msgstr "雙聲道(反轉)"
+
+#: resources/ui/mpv_control_sidebar.ui:492
+#, fuzzy
+#| msgid "Video: "
+msgid "Video Filters"
+msgstr "影片： "
+
+#: resources/ui/mpv_control_sidebar.ui:505
+msgid "Brightness"
+msgstr "亮度"
+
+#: resources/ui/mpv_control_sidebar.ui:520
+msgid "Contrast"
+msgstr "對比度"
+
+#: resources/ui/mpv_control_sidebar.ui:535
+msgid "Saturation"
+msgstr "飽和度"
+
+#: resources/ui/mpv_control_sidebar.ui:550
+msgid "Hue"
+msgstr "色調"
+
+#: resources/ui/mpv_control_sidebar.ui:565
+msgid "Gamma"
+msgstr "伽馬"
+
+#: resources/ui/mpv_control_sidebar.ui:583
+msgid "Deinterlace"
+msgstr ""
+
+#: resources/ui/mpv_control_sidebar.ui:590
+msgid "Action after video ends"
+msgstr "播放結束後動作"
+
+#: resources/ui/mpv_control_sidebar.ui:593
+msgid "Play Next"
+msgstr "自動連播"
+
+#: resources/ui/mpv_control_sidebar.ui:606
+msgid "Loop Playback"
+msgstr "循環播放"
+
+#: resources/ui/mpv_control_sidebar.ui:620
+msgid "Stop"
+msgstr "播完暫停"
+
+#: resources/ui/mpv_control_sidebar.ui:636
+msgid "Hardware decoding"
+msgstr "硬體解碼"
+
+#: resources/ui/mpv_control_sidebar.ui:640
+msgid "no (default)"
+msgstr "無（預設）"
+
+#: resources/ui/mpv_control_sidebar.ui:684
+msgid "Not all settings will be saved"
+msgstr "並非所有設定都會被保存"
+
+#: resources/ui/player_toolbar.ui:78
+msgid "Previous"
+msgstr "上一個"
+
+#: resources/ui/player_toolbar.ui:108
+msgid "Next"
+msgstr "下一個"
+
+#: resources/ui/player_toolbar.ui:180
+msgid "Stop And Hide PlayerBar"
+msgstr "停止並關閉播放器欄"
+
+#: resources/ui/pop-menu.ui:5
+msgid "Remove"
+msgstr "刪除"
+
+#: resources/ui/pop-menu.ui:11
+msgid "Like"
+msgstr "收藏"
+
+#: resources/ui/pop-menu.ui:17
+msgid "Unlike"
+msgstr "取消收藏"
+
+#: resources/ui/pop-menu.ui:47
+msgid "Identify"
+msgstr "辨識"
+
+#: resources/ui/pop-menu.ui:53
+msgid "Refresh Metadata"
+msgstr "更新元數據"
+
+#: resources/ui/pop-menu.ui:59
+msgid "Scan"
+msgstr "掃描"
+
+#: resources/ui/search.ui:23 resources/ui/window.ui:16
+#: resources/ui/window.ui:390
+msgid "Search"
+msgstr "搜尋"
+
+#: resources/ui/search.ui:40
+msgid "Series"
+msgstr "系列"
+
+#: resources/ui/search.ui:46
+msgid "Movie"
+msgstr "電影"
+
+#: resources/ui/search.ui:52 src/ui/widgets/list.rs:122
+msgid "BoxSet"
+msgstr "合集"
+
+#: resources/ui/search.ui:58
+msgid "Person"
+msgstr "藝術家"
+
+#: resources/ui/search.ui:64
+msgid "Music Album"
+msgstr "音樂專輯"
+
+#: resources/ui/search.ui:137
+msgid "Nothing Here or No type selected"
+msgstr "無內容或未選擇標籤"
+
+#: resources/ui/search.ui:138
+msgid "Maybe you should try using different search terms"
+msgstr "您可能需要使用不同的搜索詞"
+
+#: resources/ui/singlelist.ui:34 resources/ui/single_grid.ui:37
+msgid "View"
+msgstr "視圖"
+
+#: resources/ui/singlelist.ui:49
+msgid "Filter Panel"
+msgstr "篩選面板"
+
+#: resources/ui/singlelist.ui:91 resources/ui/single_grid.ui:112
+msgid "Bitrate"
+msgstr "比特率"
+
+#: resources/ui/singlelist.ui:93 resources/ui/single_grid.ui:114
+msgid "Imdb Rate"
+msgstr "Imdb 評分"
+
+#: resources/ui/singlelist.ui:94 resources/ui/single_grid.ui:115
+msgid "Critic Rating"
+msgstr "影評人評分"
+
+#: resources/ui/singlelist.ui:95 resources/ui/single_grid.ui:116
+msgid "Premiere Date"
+msgstr "首映日期"
+
+#: resources/ui/singlelist.ui:96 resources/ui/single_grid.ui:117
+msgid "Offical Rating"
+msgstr "官方評分"
+
+#: resources/ui/singlelist.ui:97 resources/ui/single_grid.ui:118
+msgid "Production Year"
+msgstr "出品年份"
+
+#: resources/ui/singlelist.ui:98 resources/ui/single_grid.ui:119
+msgid "Date Played"
+msgstr "播放日期"
+
+#: resources/ui/singlelist.ui:99 resources/ui/single_grid.ui:120
+msgid "Runtime"
+msgstr "播放時長"
+
+#: resources/ui/singlelist.ui:145 resources/ui/single_grid.ui:185
+msgid "Poster"
+msgstr "海報"
+
+#: resources/ui/singlelist.ui:149 resources/ui/single_grid.ui:189
+msgid "Backdrop"
+msgstr "背景圖"
+
+#: resources/ui/singlelist.ui:153 resources/ui/single_grid.ui:193
+msgid "Banner"
+msgstr "橫幅"
+
+#: resources/ui/server_panel.ui:47
+msgid "Restart Server"
+msgstr "重啟伺服器"
+
+#: resources/ui/server_panel.ui:58
+msgid "Shutdown Server"
+msgstr "關閉伺服器"
+
+#: resources/ui/server_panel.ui:78
+msgid "System Logs"
+msgstr "系統日誌"
+
+#: resources/ui/server_panel.ui:83
+msgid "Activity Logs"
+msgstr "活動日誌"
+
+#: resources/ui/server_panel.ui:103
+msgid "Tasks"
+msgstr "任務"
+
+#: resources/ui/server_action_row.ui:23
+msgid "Drag to reorder"
+msgstr "拖拽排序"
+
+#: resources/ui/server_action_row.ui:30
+msgid "Edit"
+msgstr "編輯"
+
+#: resources/ui/server_action_row.ui:41
+msgid "Refresh"
+msgstr "刷新"
+
+#: resources/ui/server_action_row.ui:52
+msgid "Delete"
+msgstr "刪除"
+
+#: resources/ui/single_grid.ui:31
+msgid "Change Poster"
+msgstr "更改海報"
+
+#: resources/ui/single_grid.ui:57
+msgid "Grid View"
+msgstr "網格視圖"
+
+#: resources/ui/single_grid.ui:66
+msgid "List View"
+msgstr "列表視圖"
+
+#: resources/ui/single_grid.ui:83
+msgid "Ascending"
+msgstr "遞增"
+
+#: resources/ui/single_grid.ui:91
+msgid "Descending"
+msgstr "遞減"
+
+#: resources/ui/single_grid.ui:106
+msgid "Sort By"
+msgstr "排序依據"
+
+#: resources/ui/single_grid.ui:121
+msgid "Updated At"
+msgstr ""
+
+#: resources/ui/single_grid.ui:170
+msgid "Nothing Here"
+msgstr "空空如也"
+
+#: resources/ui/window.ui:6
+msgid "Sign out"
+msgstr "登出"
+
+#: resources/ui/window.ui:26 resources/ui/window.ui:55
+msgid "About"
+msgstr "關於"
+
+#: resources/ui/window.ui:30 resources/ui/window.ui:59
+#: resources/ui/mpv_menu.ui:54
+msgid "_Keyboard shortcuts"
+msgstr "鍵盤快捷鍵"
+
+#: resources/ui/window.ui:39
+msgid "Add server"
+msgstr "添加伺服器"
+
+#: resources/ui/window.ui:158
+msgid "No Server"
+msgstr "暫無伺服器"
+
+#: resources/ui/window.ui:161
+msgid "Add Server"
+msgstr "添加伺服器"
+
+#: resources/ui/window.ui:200
+msgid "Log Out"
+msgstr "登出"
+
+#: resources/ui/window.ui:247
+msgid "Contents"
+msgstr "目錄"
+
+#: resources/ui/window.ui:298
+msgid "Home"
+msgstr "首頁"
+
+#: resources/ui/window.ui:344 src/ui/widgets/list.rs:125
+msgid "Liked"
+msgstr "收藏"
+
+#: resources/ui/window.ui:405
+msgid "Servers"
+msgstr "伺服器"
+
+#: resources/ui/mpv_shortcuts_window.ui:15
+msgid "Decrease/increase playback speed by 10%"
+msgstr "降低/增加播放速度10%"
+
+#: resources/ui/mpv_shortcuts_window.ui:21
+msgid "Halve/double current playback speed"
+msgstr "減半/加倍當前播放速度"
+
+#: resources/ui/mpv_shortcuts_window.ui:27
+msgid "Reset playback speed to normal"
+msgstr "重置播放速度"
+
+#: resources/ui/mpv_menu_actions.ui:12
+msgid "Backward"
+msgstr "快退"
+
+#: resources/ui/mpv_menu_actions.ui:42
+msgid "Forward"
+msgstr "快進"
+
+#: resources/ui/mpv_menu.ui:11
+msgid "_Next"
+msgstr "下一集"
+
+#: resources/ui/mpv_menu.ui:16
+msgid "_Previous"
+msgstr "上一集"
+
+#: resources/ui/mpv_menu.ui:23
+msgid "Next chapter"
+msgstr "下一章"
+
+#: resources/ui/mpv_menu.ui:28
+msgid "Previous chapter"
+msgstr "上一章"
+
+#: resources/ui/mpv_menu.ui:40
+msgid "Advanced settings"
+msgstr "高級設定"
+
+#: resources/ui/mpv_menu.ui:47
+msgid "Media info"
+msgstr "媒體信息"
+
+#. TRANSLATORS: 'Name <email@domain.com>' or 'Name https://website.example'
+#: src/ui/mod.rs:23
+msgid "translator-credits"
+msgstr ""
+"Gracealina  clover <zhiweishuisheng@gmail.com>\n"
+"dyphire <qimoge@gmail.com>"
+
+#: src/ui/widgets/actor.rs:266 src/ui/widgets/boxset.rs:217
+msgid "Links"
+msgstr "鏈接"
+
+#: src/ui/widgets/account_add.rs:129
+msgid "Fields must be filled in"
+msgstr "必填欄位"
+
+#: src/ui/widgets/account_add.rs:184
+msgid "Server edited successfully"
+msgstr "伺服器編輯成功"
+
+#: src/ui/widgets/account_add.rs:190
+msgid "Server added successfully"
+msgstr "伺服器添加成功"
+
+#: src/ui/widgets/account_settings.rs:206
+msgid "Password cannot be empty!"
+msgstr "密碼不能為空！"
+
+#: src/ui/widgets/account_settings.rs:210
+msgid "Passwords do not match!"
+msgstr "密碼不匹配！"
+
+#: src/ui/widgets/account_settings.rs:217
+msgid "Password changed successfully! Please login again."
+msgstr "密碼修改成功！請重新登入。"
+
+#: src/ui/widgets/account_settings.rs:223
+msgid "Failed to change password"
+msgstr "修改密碼失敗"
+
+#: src/ui/widgets/account_settings.rs:282
+msgid "Cache Cleared"
+msgstr "快取已清除"
+
+#: src/ui/widgets/account_settings.rs:303
+msgid "No file selected"
+msgstr "未選擇檔案"
+
+#: src/ui/widgets/account_settings.rs:379
+msgid "Font Cleared, Restart to take effect."
+msgstr "已清除字體，重啟程式生效。"
+
+#: src/ui/widgets/account_settings.rs:531
+#: src/ui/widgets/account_settings.rs:540
+#: src/ui/widgets/account_settings.rs:574
+#: src/ui/widgets/account_settings.rs:583
+msgid "Descriptor cannot be empty!"
+msgstr "描述符不能為空！"
+
+#: src/ui/widgets/account_settings.rs:545
+#: src/ui/widgets/account_settings.rs:588
+msgid "Invalid regex"
+msgstr "正則表達式無效"
+
+#: src/ui/widgets/boxset.rs:227
+msgid "Items"
+msgstr "條目"
+
+#: src/ui/widgets/home.rs:172
+msgid "Library"
+msgstr "媒體庫"
+
+#: src/ui/widgets/home.rs:216
+msgid "Latest"
+msgstr "最新的"
+
+#: src/ui/mpv/control_sidebar.rs:389
+msgid "Video filter settings cleared."
+msgstr "視頻濾鏡設定已清除。"
+
+#: src/ui/mpv/control_sidebar.rs:411
+msgid "Subtitle settings cleared."
+msgstr "字幕設定已清除。"
+
+#: src/ui/mpv/control_sidebar.rs:424
+msgid "Subtitle color settings cleared."
+msgstr "字幕顏色設定已清除。"
+
+#: src/ui/mpv/control_sidebar.rs:433
+msgid "Subtitle offset settings cleared."
+msgstr "字幕偏移設定已清除。"
+
+#: src/ui/mpv/page.rs:375
+msgid "Loading Video..."
+msgstr "載入視頻中..."
+
+#: src/ui/mpv/page.rs:394
+msgid "No more videos found"
+msgstr "暫未發現更多視頻"
+
+#: src/ui/mpv/page.rs:403
+msgid "Waiting for mediasource..."
+msgstr "正在等待媒體源..."
+
+#: src/ui/mpv/page.rs:440 src/ui/mpv/page.rs:445
+msgid "No media sources found"
+msgstr "暂未找到媒體源"
+
+#: src/ui/mpv/page.rs:600
+msgid "Error"
+msgstr "錯誤"
+
+#: src/ui/mpv/page.rs:602
+msgid ""
+"MPV has been shutdown, Application will exit. \n"
+"Tsukimi can't restart MPV."
+msgstr ""
+"MPV 已關閉，應用程式將退出。\n"
+"Tsukimi將無法重啟 MPV。"
+
+#: src/ui/mpv/page.rs:605
+msgid "Shutdown"
+msgstr "關閉"
+
+#: src/ui/widgets/image_infocard.rs:96
+msgid "No image to view"
+msgstr "暫無可查看的圖像"
+
+#: src/ui/widgets/image_infocard.rs:112
+msgid "No image to copy"
+msgstr "暫無可拷貝的圖像"
+
+#: src/ui/widgets/image_infocard.rs:116
+msgid "Image copied to clipboard"
+msgstr "圖像已拷貝至剪切板"
+
+#: src/ui/widgets/image_infocard.rs:156
+msgid "Error loading image"
+msgstr "圖像載入錯誤"
+
+#: src/ui/widgets/item.rs:500 src/ui/widgets/list.rs:121
+msgid "Resume"
+msgstr "繼續播放"
+
+#: src/ui/widgets/item.rs:1050
+msgid "No video source found"
+msgstr "未找到影片源"
+
+#: src/ui/widgets/music_album.rs:264
+msgid "More From"
+msgstr "更多來自"
+
+#: src/ui/widgets/list.rs:113
+msgid "Channels"
+msgstr "頻道"
+
+#: src/ui/widgets/list.rs:120
+msgid "All"
+msgstr "全部"
+
+#: src/ui/widgets/list.rs:123
+msgid "Tags"
+msgstr "標籤"
+
+#: src/ui/widgets/list.rs:124
+msgid "Genres"
+msgstr "片單"
+
+#: src/ui/widgets/liked.rs:146
+msgid "Favourite"
+msgstr "收藏"
+
+#: src/ui/widgets/star_toggle.rs:64
+msgid "Remove from favorites"
+msgstr "從收藏中刪除"
+
+#: src/ui/widgets/star_toggle.rs:65
+msgid "Add to favorites"
+msgstr "添加至收藏"
+
+#: src/ui/widgets/server_action_row.rs:91
+msgid "Edit Server"
+msgstr "編輯伺服器"
+
+#: src/ui/widgets/tu_list_item.rs:217
+msgid "Present"
+msgstr "黨前"
+
+#: src/ui/widgets/tu_list_item.rs:542
+msgid "Scanning..."
+msgstr "掃描中..."
+
+#: src/ui/widgets/tu_list_item.rs:705 src/ui/widgets/tu_list_item.rs:773
+msgid "Success"
+msgstr "成功"
+
+#: src/ui/widgets/server_panel.rs:98
+msgid "Shut down server"
+msgstr "關閉伺服器"
+
+#: src/ui/widgets/server_panel.rs:99
+msgid "Are you sure you want to shut down the server?"
+msgstr "您確定要關閉伺服器嗎？"
+
+#: src/ui/widgets/server_panel.rs:130
+msgid "Restart server"
+msgstr "重啟伺服器"
+
+#: src/ui/widgets/server_panel.rs:131
+msgid "Are you sure you want to restart the server?"
+msgstr "您確定要重新啟動伺服器嗎？"
+
+#: src/ui/widgets/server_panel.rs:134
+msgid "Revert"
+msgstr "恢復"
+
+#: src/ui/widgets/server_panel.rs:135
+msgid "Confirm"
+msgstr "確認"
+
+#: src/ui/widgets/server_panel.rs:171
+msgid "Server is shutting down"
+msgstr "伺服器正在關閉"
+
+#: src/ui/widgets/server_panel.rs:183
+msgid "Server is restarting"
+msgstr "伺服器正在重新啟動"
+
+#: src/ui/widgets/server_panel.rs:270
+msgid "Last execute: "
+msgstr "上次執行: "
+
+#: src/ui/widgets/server_panel.rs:275
+msgid "Duration: "
+msgstr "持續時間: "
+
+#: src/ui/widgets/server_panel.rs:280
+msgid "Result: "
+msgstr "結果: "
+
+#: src/ui/widgets/server_panel.rs:326
+msgid "Task started"
+msgstr "任務開始"
+
+#~ msgid "Daily Recommend"
+#~ msgstr "每日推薦"
+
+#~ msgid "HTTP Proxy"
+#~ msgstr "HTTP 代理"
+
+#~ msgid "Video Settings"
+#~ msgstr "影片設定"
+
+#~ msgid "Default Volume"
+#~ msgstr "預設音量"
+
+#~ msgid "Force Stereo"
+#~ msgstr "強制立體聲"
+
+#~ msgid "More"
+#~ msgstr "更多"
+
+#~ msgid "More Video Settings"
+#~ msgstr "更多影片設定"
+
+#~ msgid "Customizing mpv params"
+#~ msgstr "自訂 mpv 參數"
+
+#~ msgid "One param per line"
+#~ msgstr "每行一個參數"
+
+#~ msgid "Server Address"
+#~ msgstr "伺服器地址"
+
+#~ msgid "Password"
+#~ msgstr "密碼"
+
+#~ msgid "_Next chapter"
+#~ msgstr "下一章"
+
+#~ msgid "_Previous chapter"
+#~ msgstr "上一章"
+
+#~ msgid "_Media info"
+#~ msgstr "媒體信息"
+
+#~ msgid "Font Cleared"
+#~ msgstr "字體已清除"
+
+#~ msgid "_Playlist"
+#~ msgstr "播放列表"
+
+#~ msgid "_Advanced settings"
+#~ msgstr "高級設定"
+
+#~ msgid "This currently only applies to the player"
+#~ msgstr "目前僅適用於播放器"
+
+#~ msgid "Estimate Frame Rate"
+#~ msgstr "估計幀率"
+
+#~ msgid ""
+#~ "Use vf filter to interpolate frames to improve the smoothness of resizing "
+#~ "and menus."
+#~ msgstr "使用 vf 濾鏡插幀以提高尺寸調整和菜單動效的流暢度"
+
+#~ msgid "Recommended setting value: Current display frame rate"
+#~ msgstr "當前顯示更新率推薦設定值"
+
+#~ msgid "Box Set"
+#~ msgstr "合集"
+
+#~ msgid "config=true"
+#~ msgstr "開啟配置"

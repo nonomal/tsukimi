@@ -65,8 +65,15 @@
                       <object class="GtkListView" id="list">
                         <property name="orientation">horizontal</property>
                         <property name="single-click-activate">True</property>
+                        <style>
+                          <class name="horizontal-listview" />
+                        </style>
                       </object>
                     </child>
+                    <style>
+                      <class name="undershoot-start" />
+                      <class name="undershoot-end" />
+                    </style>
                   </object>
                 </child>
                 <child type="overlay">

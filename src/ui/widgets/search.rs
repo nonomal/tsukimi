@@ -31,15 +31,15 @@ mod imp {
         #[template_child]
         pub recommendbox: TemplateChild<gtk::Box>,
         #[template_child]
-        pub movie: TemplateChild<gtk::ToggleButton>,
+        pub movie: TemplateChild<adw::SwitchRow>,
         #[template_child]
-        pub series: TemplateChild<gtk::ToggleButton>,
+        pub series: TemplateChild<adw::SwitchRow>,
         #[template_child]
-        pub boxset: TemplateChild<gtk::ToggleButton>,
+        pub boxset: TemplateChild<adw::SwitchRow>,
         #[template_child]
-        pub person: TemplateChild<gtk::ToggleButton>,
+        pub person: TemplateChild<adw::SwitchRow>,
         #[template_child]
-        pub music: TemplateChild<gtk::ToggleButton>,
+        pub music: TemplateChild<adw::SwitchRow>,
         #[template_child]
         pub stack: TemplateChild<gtk::Stack>,
         pub selection: gtk::SingleSelection,
@@ -81,7 +81,7 @@ mod imp {
                         async move {
                             let search_results = obj.get_search_results::<true>().await;
 
-                            scrolled.set_grid::<false>(search_results.items);
+                            scrolled.set_store::<false>(search_results.items, false);
 
                             lock.store(false, Ordering::SeqCst);
                         },
@@ -171,6 +171,8 @@ impl SearchPage {
             ));
             recommendbox.append(&button);
         }
+
+        imp.stack.set_visible_child_name("recommend");
     }
 
     #[template_callback]
@@ -184,13 +186,15 @@ impl SearchPage {
             return;
         };
 
-        imp.searchscrolled.set_grid::<true>(search_results.items);
+        imp.searchscrolled
+            .set_store::<true>(search_results.items, false);
 
         imp.stack.set_visible_child_name("result");
     }
 
     pub async fn get_search_results<const F: bool>(&self) -> List {
         let imp = self.imp();
+
         let search_content = imp.searchentry.text().to_string();
         let search_filter = {
             let mut filter = Vec::new();
@@ -209,11 +213,18 @@ impl SearchPage {
             if imp.music.is_active() {
                 filter.push("MusicAlbum");
             }
+            if filter.is_empty() {
+                return List::default();
+            }
             filter
         };
-        let n_items = if F { imp.searchscrolled.n_items() } else { 0 };
-
-        fraction_reset!(self);
+        let n_items = if F {
+            fraction_reset!(self);
+            imp.searchscrolled.n_items()
+        } else {
+            imp.stack.set_visible_child_name("loading");
+            0
+        };
 
         let search_results = match spawn_tokio(async move {
             EMBY_CLIENT
@@ -229,7 +240,9 @@ impl SearchPage {
             }
         };
 
-        fraction!(self);
+        if F {
+            fraction!(self)
+        }
 
         search_results
     }
