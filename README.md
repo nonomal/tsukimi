@@ -1,91 +1,100 @@
-<h1 align="center">Tsukimi</h1>
+# tsukimi
+A simple third-party Jellyfin client for Linux.
 
-> A Simple Third-party Emby client.    
-> 使用 GTK4-RS 编写的第三方 Emby 客户端
+> We use wl-proxy for mpv gpu-next vo embedding, you can find the embedder [here](https://github.com/MutsumiUniverse/Mutsumi). We also made a local player [Fughetta](https://github.com/MutsumiUniverse/Fughetta) using this embedder.
 
-![Commit Activity](https://img.shields.io/github/commit-activity/m/tsukinaha/Tsukimi/main) ![Top Language](https://img.shields.io/github/languages/top/tsukinaha/Tsukimi) ![Github License](https://img.shields.io/github/license/tsukinaha/Tsukimi) [![Linux CI](https://github.com/tsukinaha/tsukimi/actions/workflows/build_linux.yml/badge.svg)](https://github.com/tsukinaha/tsukimi/actions/workflows/build_linux.yml) [![Windows GNU CI status](https://github.com/tsukinaha/tsukimi/actions/workflows/build_release.yml/badge.svg)](https://github.com/tsukinaha/tsukimi/actions/workflows/build_release.yml) [![AUR Version](https://img.shields.io/aur/version/tsukimi-git)](https://aur.archlinux.org/packages/tsukimi-git) 
-
-## Notice
-
-> [!IMPORTANT]
-> READ BEFORE INSTALLATION    
-
-- **对 Windows 的支持不做任何保证**
-- Trello Kanban     https://trello.com/b/8GOsuygJ/%E5%95%8A%EF%BC%9F  
-- Telegram Group    https://t.me/+-kAfBLQ-ol0yNjA1  
+<p align="left">
+    <a href="https://matrix.to/#/#tsukimi:matrix.org"><img alt="Matrix" src="https://img.shields.io/badge/Matrix-%23tsukimi-7aa2f7?style=flat&logo=matrix&logoColor=white"></a>
+    <a href="https://t.me/tsukimi_frying_crab"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-Group-7dcfff?style=flat&logo=telegram&logoColor=white"></a>
+    <a href="https://github.com/tsukinaha/tsukimi/wiki"><img alt="Wiki" src="https://img.shields.io/badge/GitHub-Wiki-bb9af7?style=flat&logo=github&logoColor=white"></a>
+    <a href="https://hosted.weblate.org/engage/tsukimi"><img alt="Translations" src="https://img.shields.io/badge/Weblate-Translations-9ece6a?style=flat&logo=weblate&logoColor=white"></a>
+    <a href="https://github.com/tsukinaha/tsukimi/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPL--3.0-f7768e?style=flat&logo=gnu&logoColor=white"></a>
+    <a href="https://flathub.org/apps/details/moe.tsuna.tsukimi"><img alt="Flathub" src="https://img.shields.io/badge/Flathub-Release-7aa2f7?style=flat&logo=flathub&logoColor=white"></a>
+</p>
 
 ## Screenshots
 <div align="center">
- <img src="./docs/tsukimi.png"/>
+ <img src="./docs/tsukimi1.png"/>
+</div>
+<div align="center">
+ <img src="./docs/tsukimi2.png"/>
+</div>
+<div align="center">
+ <img src="./docs/tsukimi3.png"/>
 </div>
 
-## Build
-### Linux
-- 请见 [Dockerfile](https://github.com/tsukinaha/tsukimi/blob/main/Dockerfile)
-
 ## Installation
-### Linux
-Archlinux
+
+<a href="https://flathub.org/apps/details/moe.tsuna.tsukimi">
+<img
+    src="https://flathub.org/assets/badges/flathub-badge-i-en.svg"
+    alt="Download Tsukimi on Flathub"
+    width="240px"
+    height="80px"
+/>
+</a>
+
+### Native Packages
+[![Packaging status](https://repology.org/badge/vertical-allrepos/tsukimi.svg)](https://repology.org/project/tsukimi/versions)
+
+### Fedora
+```bash
+sudo dnf copr enable walker874/tsukimi
+sudo dnf install tsukimi
 ```
-# From AUR
+
+### Arch Linux
+```bash
+# AUR release (https://aur.archlinux.org/packages/tsukimi-bin)
+paru -S tsukimi-bin
+
+# AUR latest commit (https://aur.archlinux.org/packages/tsukimi-git)
 paru -S tsukimi-git
-```
- 
 
-### Windows
-- Scoop
-```
-# Install tsukimi only, tsukimi included in Scoop/Extras
-## if you want to tansfer previous installed tsukimi from scol to Extras, first uninstall it and reinstall by `scoop install Extras/tsukimi` 
-scoop install tsukimi
+# archlinuxcn repo https://github.com/archlinuxcn/repo/blob/master/archlinuxcn/tsukimi/PKGBUILD
+sudo pacman -Syu tsukimi
 
-# Or install tsukimi with mpv configs
-scoop bucket add scol https://github.com/Kosette/scol.git
-scoop install tsukimi-full
+# archlinuxcn repo https://github.com/archlinuxcn/repo/blob/master/archlinuxcn/tsukimi-git/PKGBUILD
+sudo pacman -Syu tsukimi-git
 ```
-- [Release](https://github.com/tsukinaha/tsukimi/releases/latest)
+
+### AOSC OS
+```bash
+sudo oma install tsukimi
+```
+
+### Gentoo Linux
+```bash
+sudo eselect repository enable gentoo-zh
+sudo emerge --sync gentoo-zh
+sudo emerge --ask media-video/tsukimi
+```
+
+### Nix
+`tsukimi` is available in nixpkgs since 24.11.
 
 ## MPV Config
-- Linux: `$XDG_CONFIG_HOME/mpv`
-- Windows: 
-```
-|__bin\
-|__share\
-|__lib\
-|__mpv\
-|    |__mpv.conf
-|    |__input.conf
-|    |__scripts\
-|    |    |__ .......
-|    |__ .......
-|__config\
-```
-Priority:
-`./mpv`>`$MPV_HOME`>`%APPDATA%/mpv`
-[MPV-manual#files](https://mpv.io/manual/master/#files) 
+[MPV-manual#files](https://mpv.io/manual/master/#files)
 
+## Contributing
+Please follow the [contribution guide](./CONTRIBUTING.md) to learn how to
+start contributing to Tsukimi.
 
-## Themes
+## Disclaimer
+The developers of this application do not have any affiliation with the content providers available.
 
-- 在自定义样式表时请使用 Default [更多](https://wiki.archlinux.org/title/GTK#Configuration)
+## License
+tsukimi is licensed under the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license.
 
-## Credits
-- [gtk4-rs](https://github.com/gtk-rs/gtk4-rs)
+Thanks to open-source projects like GNOME Music, Fractal, and Clapper—we referenced a lot from them during development, and everyone who contributed code or translations!
+
+### Credits
+- [GTK4-RS](https://github.com/gtk-rs/gtk4-rs)
 - [MPV](https://github.com/mpv-player/mpv)
 - [Adwaita](https://gitlab.gnome.org/GNOME/libadwaita/)
 
-## Thanks
-- Gnome Music
-- Fractal
-- Clapper
-
-## Star History
-
-<a href="https://star-history.com/#tsukinaha/tsukimi&Timeline">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tsukinaha/tsukimi&type=Timeline&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=tsukinaha/tsukimi&type=Timeline" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=tsukinaha/tsukimi&type=Timeline" />
- </picture>
-</a>
-
+<sup>
+Fonts used in screenshots: <a href="https://github.com/lxgw/LxgwWenKai-Screen">LXGW WenKai Screen</a>
+<br />
+Anime in screenshots: <a href="https://goodbyelara.com/">さよならララ</a>
+</sup>

@@ -1,30 +1,24 @@
-name: 功能改进
-description: Feature Request
-title: "[功能改进]: "
-labels: ["feature request"]
+name: Feature request
+description: Suggest an idea for this project
+title: "<Title>"
+labels:
+  - enhancement
+  - pending
+assignees:
+  - tsukinaha
 body:
-  - type: markdown
+  - type: checkboxes
+    id: request-type
     attributes:
-      value: |
-        请说明你希望添加的功能。
-  - type: input
-    id: version
+      label: Request type
+      options:
+        - label: I confirm that this is a feature request, not a bug report.
+          required: true
+
+  - type: textarea
+    id: description
     attributes:
-      label: 当前程序版本
-      description: 目前使用的程序版本
+      label: Description
+      description: Describe the feature you would like to see and the problem it would solve.
     validations:
       required: true
-  - type: textarea
-    id: feature-request
-    attributes:
-      label: 功能改进
-      description: 请详细描述需要改进或者添加的功能。
-      placeholder: "功能改进"
-    validations:
-      required: true
-  - type: textarea
-    id: references
-    attributes:
-      label: 参考资料
-      description: 可以列举一些参考资料，但是不要引用同类但商业化软件的任何内容。
-      placeholder: "参考资料"

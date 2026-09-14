@@ -1,40 +1,69 @@
-name: Linux CI
+name: Linux
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - 'main'
-  # schedule:
-  #   - cron: '45 3 * * *'
+  workflow_call:
 
 jobs:
-  build-release:
+  build:
+    name: Build (${{ matrix.platform }})
+
     strategy:
       matrix:
         include:
-          - arch-name: x86_64-linux-gnu
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact: tsukimi
+          - platform: amd64
+            os: ubuntu-26.04
+          - platform: arm64
+            os: ubuntu-26.04-arm
 
-    runs-on: ${{matrix.os}}
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build ${{matrix.target}}
+      - name: Install dependencies
         run: |
-          mkdir artifact
-          docker build -t tsukimi .
-          docker run -d --name tsukimi tsukimi
-          docker cp tsukimi:/usr/src/tsukimi/. artifact/
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            appstream \
+            build-essential \
+            curl \
+            desktop-file-utils \
+            gettext \
+            gstreamer1.0-libav \
+            libxml2-utils \
+            meson \
+            ninja-build \
+            pkg-config \
+            libadwaita-1-dev \
+            libdbus-1-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-bad1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            libgstreamer-plugins-extra1.0-dev \
+            libgtk-4-dev \
+            libmpv-dev \
+            blueprint-compiler \
+            libssl-dev
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Build tsukimi for ${{ matrix.platform }}
+        env:
+          DANDANAPI_SECRET_KEY: ${{ secrets.DANDANAPI_SECRET_KEY }}
+        run: |
+          meson setup build --prefix=/usr
+          meson compile -C build
+          meson install -C build --destdir "$PWD/artifact/tsukimi-${{ matrix.platform }}-linux"
+          tar -czf tsukimi-${{ matrix.platform }}-linux.tar.gz -C artifact tsukimi-${{ matrix.platform }}-linux
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: ${{matrix.artifact}}-${{matrix.arch-name}}
-          path: artifact/*
-          compression-level: 0
-          overwrite: true
-          retention-days: 7
+          name: tsukimi-${{ matrix.platform }}-linux
+          path: tsukimi-${{ matrix.platform }}-linux.tar.gz
+          archive: false

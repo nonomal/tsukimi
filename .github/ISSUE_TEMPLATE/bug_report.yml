@@ -1,66 +1,92 @@
-name: 问题反馈
-description: File a bug report
-title: "[错误报告]: 请在此处简单描述你的问题"
-labels: ["bug"]
+name: Bug report
+description: Create a report to help us improve
+title: "<Title>"
+labels:
+  - bug
+  - pending
+assignees:
+  - tsukinaha
 body:
   - type: markdown
     attributes:
       value: |
-        请确认以下信息：
-        1. 请按此模板提交issues，不按模板提交的问题将直接关闭。
-        2. 如果你的问题可以直接在以往 issue 中找到，那么你的 issue 将会被直接关闭。
-        3. 提交问题务必描述清楚、附上日志，描述不清导致无法理解和分析的问题会被直接关闭。
+        ## Important
+
+        如果日志包含敏感信息，可以将日志作为附件发送至 `tkmreport@notalium.co`。
+
+        To collect a log, run `tsukimi -f /path/to/log` in your terminal.
+
   - type: checkboxes
-    id: ensure
+    id: confirmations
     attributes:
-      label: 确认
-      description: 在提交 issue 之前，请确认你已经阅读并确认以下内容
+      label: Confirm the following information
       options:
-        - label: 我的版本是最新版本，我的版本号与 [version](https://github.com/tsukinaha/tsukimi/releases/latest) 相同。
+        - label: I have searched the existing issues and found no duplicate.
           required: true
-        - label: 我已经 [issue](https://github.com/tsukinaha/tsukimi/issues) 中搜索过，确认我的问题没有被提出过。
+        - label: I have obtained the complete log.
           required: true
-        - label: 我已经修改标题，将标题中的 描述 替换为我遇到的问题。
+        - label: I have read the [Wiki](https://github.com/tsukinaha/tsukimi/wiki).
           required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: e.g. NixOS 24.11
+    validations:
+      required: true
+
+  - type: input
+    id: architecture
+    attributes:
+      label: Architecture
+      placeholder: e.g. x86_64
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      placeholder: e.g. NVIDIA GTX 690
+    validations:
+      required: true
+
+  - type: input
+    id: compositor
+    attributes:
+      label: Compositor
+      placeholder: e.g. KWin Wayland
+    validations:
+      required: true
+
   - type: input
     id: version
     attributes:
-      label: 当前程序版本
-      description: 遇到问题时程序所在的版本号
+      label: Tsukimi version
+      placeholder: e.g. 0.11.4
     validations:
       required: true
-  - type: dropdown
-    id: platform
-    attributes:
-      label: 当前的操作系统
-      description: 你在哪个平台使用Tsukimi
-      options:
-        - Windows
-        - Linux
-    validations:
-      required: true
-  - type: dropdown
-    id: type
-    attributes:
-      label: 问题类型
-      description: 你在以下哪个部分碰到了问题
-      options:
-        - 主程序运行问题
-        - 运行环境问题
-        - 其他问题
-    validations:
-      required: true
+
   - type: textarea
-    id: what-happened
+    id: description
     attributes:
-      label: 问题描述
-      description: 请详细描述你碰到的问题
-      placeholder: "问题描述"
+      label: Describe the bug
+      description: Provide a clear and concise description of the bug.
     validations:
       required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+
   - type: textarea
     id: logs
     attributes:
-      label: 发生问题时进行的大致操作和界面截图
-      description: 问题出现时，程序运行日志请复制到这里。
-      render: bash
+      label: Logs
+      description: Paste the complete log here. Logs are automatically formatted as code.
+      render: shell
+    validations:
+      required: true
